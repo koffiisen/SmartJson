@@ -11,7 +11,7 @@
 
 ## How to run
 * use code from github or
-* `pip install superjson`
+* `pip install smartjson`
 
 ## Parameters
 
