@@ -17,7 +17,7 @@ with open("README.md", "r") as fh:
         include_package_data=False,
         classifiers=[
             "Programming Language :: Python :: 3",
-            "License :: Apache Software License",
+            "License :: OSI Approved :: MIT License",
             "Operating System :: OS Independent",
         ],
     )
