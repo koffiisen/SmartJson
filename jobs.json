@@ -1,0 +1,42 @@
+{
+  "id": 1,
+  "job": {
+    "date": "2019-09-30 11:28:54.422899",
+    "date2": "2019-09-30 11:28:54.422899",
+    "item": {
+      "another": {
+        "age": 26,
+        "meteo": {
+          "complex": "(12+78j)",
+          "none": "",
+          "pluie": true,
+          "tuple": [
+            [
+              [
+                1,
+                "a"
+              ],
+              [
+                2,
+                "b"
+              ]
+            ]
+          ]
+        },
+        "precision": 99.56,
+        "ville": "Lille"
+      },
+      "item_boof": "2019-09-30 11:28:54.422899",
+      "item_name": "item 1",
+      "mylist": [
+        1,
+        2,
+        3
+      ]
+    },
+    "job_name": "Test",
+    "job_url": "_blank"
+  },
+  "name": "John",
+  "url": "5444"
+}
