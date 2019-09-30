@@ -1,4 +1,4 @@
-[![PyPI version](https://badge.fury.io/py/smartjson.svg)](https://pypi.org/project/smartjson/1.0.0/)
+[![PyPI version](https://badge.fury.io/py/smartjson.svg)](https://pypi.org/project/smartjson/)
 # Tool to convert Class to Json and Json to Object ([SmartJson](https://github.com/koffiisen/SmartJson))
 
 [SmartJson](https://github.com/koffiisen/SmartJson) is a simple tool to convert any class to JSON and convert json to Object.
