@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 with open("README.md", "r") as fh:
     long_description = fh.read()
     setup(
-        name='SuperJson',
+        name='smartjson',
         version='1.0.0',
         author="J. Koffi ONIPOH",
         author_email="jolli644@gmail.com",

@@ -1,5 +1,5 @@
 import datetime
-from scripts.__super_json__ import SuperJSON
+from scripts.__smart_json__ import SmartJson
 
 
 class Pull:
@@ -61,10 +61,10 @@ class Jobs:
 
 
 jb = Jobs()
-super_json = SuperJSON(jb)
+super_json = SmartJson(jb)
 serialize = super_json.serialize(pretty=False)
 print(serialize)
-pretty = SuperJSON(Jobs()).serialize()
+pretty = SmartJson(Jobs()).serialize()
 print(pretty)
 
 objFromFile = super_json.toObjectFromFile("jobs.json")

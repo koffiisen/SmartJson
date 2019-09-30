@@ -1,7 +1,7 @@
 [![PyPI version](badge.svg)]()
-# Tool to convert Class to Json and Json to Object ([SuperJson](https://github.com/koffiisen/SuperJson))
+# Tool to convert Class to Json and Json to Object ([SmartJson](https://github.com/koffiisen/SmartJson))
 
-[SuperJson](https://github.com/koffiisen/SuperJson) is a simple tool to convert any class to JSON and convert json to Object.
+[SmartJson](https://github.com/koffiisen/SmartJson) is a simple tool to convert any class to JSON and convert json to Object.
 
 # Usage
 
@@ -36,7 +36,7 @@
 
 ```python
 import datetime
-from superjson.__super_json__ import SuperJSON
+from scripts.__smart_json__ import SmartJson
 
 class Pull:
     def __init__(self):
@@ -96,14 +96,14 @@ class Jobs:
                     self.none = None
 
 jb = Jobs()
-super_json = SuperJSON(jb)
+smart_json = SmartJson(jb)
 
 # Disable pretty print
-serialize = super_json.serialize(pretty=False)
+serialize = smart_json.serialize(pretty=False)
 print(serialize)
 
 # Use pretty print
-pretty = SuperJSON(Jobs()).serialize()
+pretty = SmartJson(Jobs()).serialize()
 print(pretty)
 
 ```
@@ -166,9 +166,9 @@ print(pretty)
 ### Json to Object
 ```text
 
-objFromFile = super_json.toObjectFromFile("jobs.json")
-obj = super_json.toObject('{"people":[{"name":"Scott", "website":"stackabuse.com", "from":"Nebraska"}]}')
-obj2 = super_json.toObject({'item': 'Beer', 'cost': '£4.00'})
+objFromFile = smart_json.toObjectFromFile("jobs.json")
+obj = smart_json.toObject('{"people":[{"name":"Scott", "website":"stackabuse.com", "from":"Nebraska"}]}')
+obj2 = smart_json.toObject({'item': 'Beer', 'cost': '£4.00'})
 
 print(obj2.item, obj2.cost)
 print(objFromFile.job.item.another.precision)

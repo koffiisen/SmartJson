@@ -1,1 +1,1 @@
-from .__super_json__ import SuperJSON
+from .__smart_json__ import SmartJson

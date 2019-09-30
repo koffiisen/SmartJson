@@ -8,13 +8,13 @@ import datetime
 import json
 
 
-class SuperJSON:
+class SmartJson:
     def __init__(self, cls):
         """
         :param cls:
         """
         self.__classe = cls
-        self.___obj = SuperJSON.__DataTypeConversion(cls).next()
+        self.___obj = SmartJson.__DataTypeConversion(cls).next()
 
     def serialize(self, pretty=True):
         """
@@ -27,7 +27,7 @@ class SuperJSON:
             else:
                 return json.dumps(self.__serialize(self.___obj).__dict__, sort_keys=True)
         except TypeError as e:
-            SuperJSON._UnsupportedClass((type(self.___obj).__name__), e)
+            SmartJson._UnsupportedClass((type(self.___obj).__name__), e)
 
     def toObjectFromFile(self, jsonFile):
         """
@@ -38,7 +38,7 @@ class SuperJSON:
         with open(jsonFile) as outfile:
             dic = json.load(outfile)
 
-            return SuperJSON._KObject(dic)
+            return SmartJson._KObject(dic)
 
     def toObject(self, _json):
         """
@@ -52,7 +52,7 @@ class SuperJSON:
         elif isinstance(_json, dict):
             dic = _json
 
-        return SuperJSON._KObject(dic)
+        return SmartJson._KObject(dic)
 
     def getClass(self):
         return self.__classe
@@ -76,7 +76,7 @@ class SuperJSON:
             try:
                 return self.__next(self.___cls)
             except TypeError as e:
-                SuperJSON._UnsupportedClass((type(self.___cls).__name__), e)
+                SmartJson._UnsupportedClass((type(self.___cls).__name__), e)
 
         def __next(self, cls):
             for attr, value in vars(cls).items():
