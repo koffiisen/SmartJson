@@ -7,7 +7,7 @@
 
 ## Requirements
 
-[Python 3](https://www.python.org/downloads/) must be installed.
+[Python >= 2.7](https://www.python.org/downloads/) must be installed.
 
 ## How to run
 * use code from github or
