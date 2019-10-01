@@ -240,6 +240,6 @@ print(obj.people[0].name, obj.people[0].website)
 
 ```
 
-###Author : [Koffi Joel O.](https://github.com/koffiisen)
+## Author : [Koffi Joel O.](https://github.com/koffiisen)
 
 
