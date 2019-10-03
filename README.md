@@ -89,8 +89,8 @@ Features:
 * Fix script
 * update complex serialization
 * Add new method ([`serializeToJsonFile`]()) ``convert your class to json file``
-* [dict]() : ``Default parameter directory="outpout", filename="smart.json" ``
-* [class]() : ``Default parameter directory="outpout", filename="className.json"``
+* [dict]() : ``Default parameter directory="output", filename="smart.json" ``
+* [class]() : ``Default parameter directory="output", filename="className.json"``
 
 * ### ex :
     - ``SmartJson(Test()).serializeToJsonFile(directory="yourPath", filename="MyFileName.json")``
