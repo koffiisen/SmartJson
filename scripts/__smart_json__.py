@@ -1,13 +1,13 @@
 """
 Author : J. Koffi ONIPOH
-Version : 2.0.1
+Version : 2.0.2
 email: jolli644@gmail.com
 """
 
 import datetime
 import json
 import os
-from collections import OrderedDict, deque
+from collections import OrderedDict
 from copy import deepcopy
 
 
@@ -28,22 +28,39 @@ class SmartJson:
         :param pretty:
         :return:
         """
+
         try:
             if isinstance(self.__classe, dict):
                 return SmartJson._DictConversion(self.__classe).serialize(pretty)
-            elif isinstance(self.__classe, object):
-                self.___obj = SmartJson._DataTypeConversion(self.__classe).next()
+            elif isinstance(self.__classe, list):
+                return SmartJson._ListConversion(self.__classe).serialize(pretty)
+            elif isinstance(self.__classe, (int, float, bool, str, type(None))):
                 if pretty:
-                    return json.dumps({'' + self.classname: self._serialize(self.___obj).__dict__}, indent=2,
-                                      sort_keys=True)
+                    return json.dumps(self.__classe, indent=2, sort_keys=True)
                 else:
-                    return json.dumps({'' + self.classname: self._serialize(self.___obj).__dict__}, sort_keys=True)
+                    return json.dumps(self.__classe, sort_keys=True)
+            elif isinstance(self.__classe, (tuple, complex, datetime.date, datetime.datetime, OrderedDict)):
+                if pretty:
+                    return json.dumps(self._JsonConvert().json_convert(self.__classe), indent=2, sort_keys=True)
+                else:
+                    return json.dumps(self._JsonConvert().json_convert(self.__classe), sort_keys=True)
+            elif isinstance(self.__classe, object):
+                if SmartJson._JsonConvert().get_class_name(self.__classe) == "enum.EnumMeta":
+                    return SmartJson._EnumConversion(self.__classe).serialize(pretty)
+                else:
+                    self.___obj = SmartJson._DataTypeConversion(self.__classe).next()
+                    if pretty:
+                        return json.dumps({'' + self.classname: self._serialize(self.___obj).__dict__}, indent=2,
+                                          sort_keys=True)
+                    else:
+                        return json.dumps({'' + self.classname: self._serialize(self.___obj).__dict__}, sort_keys=True)
+
 
 
         except TypeError as e:
             SmartJson._UnsupportedClass((type(self.___obj).__name__), e)
 
-    def serializeToJsonFile(self, directory="outpout", filename="smart.json"):
+    def serializeToJsonFile(self, directory="output", filename="smart.json"):
         """
         :param pretty:
         :return:
@@ -56,10 +73,11 @@ class SmartJson:
                 raise
 
         try:
-            if isinstance(self.__classe, dict):
+            if isinstance(self.__classe, (
+                    int, float, bool, str, type(None), dict, tuple, complex, datetime.date, datetime.datetime,
+                    OrderedDict)) or SmartJson._JsonConvert().get_class_name(self.__classe) == "enum.EnumMeta":
                 with open(directory + "/" + filename, 'w') as outfile:
-                    json.dump(json.loads(SmartJson._DictConversion(self.__classe).serialize(pretty=True)), outfile,
-                              indent=2, sort_keys=True)
+                    json.dump(json.loads(self.serialize(pretty=True)), outfile, indent=2, sort_keys=True)
             elif isinstance(self.__classe, object):
                 self.___obj = SmartJson._DataTypeConversion(self.__classe).next()
 
@@ -144,6 +162,8 @@ class SmartJson:
                         cls.__setattr__(attr, list((self._json_cvt.json_convert(v) for v in value)))
                     elif self._json_cvt.get_class_name(value) == "collections.deque":
                         cls.__setattr__(attr, self._json_cvt.json_convert(OrderedDict(value)))
+                    elif self._json_cvt.get_class_name(value) == "enum.EnumMeta":
+                        cls.__setattr__(attr, [SmartJson._EnumConversion(value).convert()])
                     elif isinstance(value, type(None)):
                         cls.__setattr__(attr, "")
                     elif isinstance(value, bytes):
@@ -180,6 +200,75 @@ class SmartJson:
                 else:
                     setattr(self, a, self.__class__(b) if isinstance(b, dict) else b)
 
+    class _EnumConversion:
+        def __init__(self, myEnum):
+            self.__myEnum = deepcopy(myEnum)
+            self._json_cvt = SmartJson._JsonConvert()
+
+        def serialize(self, pretty):
+            if pretty:
+                return json.dumps(self.convert(), indent=2, sort_keys=True)
+            else:
+                return json.dumps(self.convert())
+
+        def convert(self):
+            if self._json_cvt.get_class_name(self.__myEnum) == "enum.EnumMeta":
+                converts = {}
+                for attr, value in vars(self.__myEnum).items():
+                    if "_member_names_" == attr:
+                        for member in value:
+                            # var = self.__myEnum.__getattribute__(self.__myEnum, member).value
+                            converts[member] = self.__myEnum[member].value
+
+                return SmartJson._DictConversion(converts).convert()
+            else:
+                SmartJson._UnsupportedClass((type(self.__myEnum).__name__), "This type of enum not support")
+
+    class _ListConversion:
+        def __init__(self, myList):
+            self.__myList = deepcopy(myList)
+            self._json_cvt = SmartJson._JsonConvert()
+
+        def serialize(self, pretty):
+            if pretty:
+                return json.dumps(self.convert(), indent=2, sort_keys=True)
+            else:
+                return json.dumps(self.convert())
+
+        def convert(self):
+            convert_result = []
+            for attr in self.__myList:
+                if isinstance(attr, (datetime.date, datetime.datetime)):
+                    convert_result.append(str(attr))
+                elif isinstance(attr, bytes):
+                    convert_result.append(attr.decode("utf-8"))
+                elif isinstance(attr, (int, float, bool, str, type(None))):
+                    continue
+                elif isinstance(attr, (list, tuple, set)):
+                    convert_result.append([self._json_cvt.json_convert(item) for item in attr])
+                elif isinstance(attr, OrderedDict):
+                    convert_result.append(self._json_cvt.json_convert(attr))
+                elif isinstance(attr, complex):
+                    convert_result.append(self._json_cvt.json_convert(attr))
+                elif isinstance(attr, dict):
+                    obj = [SmartJson._DictConversion(attr).convert()]
+                    convert_result.append(obj)
+                elif self._json_cvt.get_class_name(attr) == "collections.deque":
+                    convert_result.append(self._json_cvt.json_convert(OrderedDict(attr)))
+                elif self._json_cvt.get_class_name(attr) == "enum.EnumMeta":
+                    convert_result.append([SmartJson._EnumConversion(attr).convert()])
+                elif hasattr(attr, "__class__"):
+                    if isinstance(attr, (int, float, bool, str, type(None))):
+                        convert_result.append(attr)
+                    elif isinstance(attr, (list, tuple, set)):
+                        convert_result.append({[self._json_cvt.json_convert(item) for item in attr]})
+                    else:
+                        cls = attr
+                        serialize = SmartJson._DataTypeConversion(cls).next().__dict__
+                        convert_result.append(serialize)
+
+            return convert_result
+
     class _DictConversion:
         def __init__(self, dict):
             self.__dict = deepcopy(dict)
@@ -197,6 +286,8 @@ class SmartJson:
                     self.__dict[attr] = str(self.__dict[attr])
                 elif isinstance(self.__dict[attr], bytes):
                     self.__dict[attr] = self.__dict[attr].decode("utf-8")
+                elif isinstance(self.__dict[attr], (int, float, bool, str, type(None))):
+                    continue
                 elif isinstance(self.__dict[attr], (list, tuple, set)):
                     self.__dict[attr] = [self._json_cvt.json_convert(item) for item in self.__dict[attr]]
                 elif isinstance(self.__dict[attr], OrderedDict):
@@ -205,18 +296,23 @@ class SmartJson:
                     self.__dict[attr] = self._json_cvt.json_convert(self.__dict[attr])
                 elif self._json_cvt.get_class_name(self.__dict[attr]) == "collections.deque":
                     self.__dict[attr] = self._json_cvt.json_convert(OrderedDict(self.__dict[attr]))
+                elif self._json_cvt.get_class_name(self.__dict[attr]) == "enum.EnumMeta":
+                    self.__dict[attr] = [SmartJson._EnumConversion(self.__dict[attr]).convert()]
                 elif hasattr(self.__dict[attr], "__class__"):
                     if isinstance(self.__dict[attr], (int, float, bool, str, type(None))):
                         continue
                     elif isinstance(self.__dict[attr], (list, tuple, set)):
                         self.__dict[attr] = {[self._json_cvt.json_convert(item) for item in self.__dict[attr]]}
+                    elif isinstance(self.__dict[attr], dict):
+                        cls = self.__dict[attr]
+                        serialize = SmartJson._DictConversion(cls).convert()
+                        self.__dict[attr] = serialize
                     else:
                         cls = self.__dict[attr]
                         serialize = SmartJson._DataTypeConversion(cls).next().__dict__
                         self.__dict[attr] = serialize
 
             return self.__dict
-            # return json.dumps(self.__dict, indent=2, sort_keys=True)
 
     class _JsonConvert:
 

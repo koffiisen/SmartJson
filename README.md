@@ -13,13 +13,78 @@
 [![Downloads](https://pepy.tech/badge/smartjson/month)](https://pepy.tech/project/smartjson/month)
 [![Downloads](https://pepy.tech/badge/smartjson/week)](https://pepy.tech/project/smartjson/week)
 
-### Tool to convert Class, object and dict to Json and Json to Object ([SmartJson](https://github.com/koffiisen/SmartJson))
+### Python libraries to convert class to json, object and dict to Json and Json to Object ([SmartJson](https://github.com/koffiisen/SmartJson))
 
 [SmartJson](https://github.com/koffiisen/SmartJson) is a simple tool to convert any class or dict to JSON and convert json to Object.
 
 Documentation
 ===============================================================================
 Features: 
+## ``version (2.0.2) ``
+* Fix script
+* Add script support enumeration (``enum``)
+* Already support type : * ``class``
+                         * ``date``
+                         * ``datetime``
+                         * ``set``
+                         * ``OrderedDict``
+                         * ``deque``
+                         * ``list``
+                         * ``int``
+                         * ``float``
+                         * ``bool``
+                         * ``complex``
+                         * ``tuple``
+                         * ``str``
+                         * ``dict``
+                         * ``bytes``
+                         * ``None``
+* ### ex :
+    ```python
+  from enum import Enum, IntEnum
+  from scripts import SmartJson
+  
+  class LoggerLevel(Enum):
+      CRITICAL = 'CRITICAL'
+      ERROR = 'ERROR'
+      WARNING = 'WARNING'
+      INFO = 'INFO'
+      DEBUG = 'DEBUG'
+      NOTSET = "NOTSET"
+      
+      
+  class Status(IntEnum):
+      success = 0
+      failure = 1
+  
+  print(SmartJson({'Log': LoggerLevel, 'Stat': Status}).serialize())
+    ```
+* ### output :
+  ```json
+
+  {
+    "Log": [
+      {
+        "CRITICAL": "CRITICAL",
+        "DEBUG": "DEBUG",
+        "ERROR": "ERROR",
+        "INFO": "INFO",
+        "NOTSET": "data",
+        "WARNING": "WARNING"
+      }
+    ],
+    "Stat": [
+      {
+        "failure": 1,
+        "success": 0
+      }
+    ]
+  }
+  
+   ```
+      
+      
+
 ## ``version (2.0.1) ``
 * Fix script
 * update complex serialization
