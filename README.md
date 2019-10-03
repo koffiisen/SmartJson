@@ -2,17 +2,36 @@
 [![PyPI version](https://img.shields.io/pypi/pyversions/smartjson.svg)](https://pypi.org/project/smartjson/)
 [![PyPI version](https://img.shields.io/pypi/dm/smartjson.svg)](https://pypi.org/project/smartjson/)
 
+
 [![PyPI install](https://img.shields.io/badge/Link-Install-blue.svg)](https://pypi.org/project/smartjson/)
 [![PyPI version](https://img.shields.io/badge/Link-GitHub-blue.svg)](https://github.com/koffiisen/SmartJson)
 [![PyPI download](https://img.shields.io/badge/Link-Download-blue.svg)](https://pypi.org/pypi/smartjson#files)
 
+* ``BigQuery | Google cloud`` [<==>](https://cloud.google.com/bigquery/) 
+
+[![Downloads](https://pepy.tech/badge/smartjson)](https://pepy.tech/project/smartjson)
+[![Downloads](https://pepy.tech/badge/smartjson/month)](https://pepy.tech/project/smartjson/month)
+[![Downloads](https://pepy.tech/badge/smartjson/week)](https://pepy.tech/project/smartjson/week)
+
 ### Tool to convert Class, object and dict to Json and Json to Object ([SmartJson](https://github.com/koffiisen/SmartJson))
 
-[SmartJson](https://github.com/koffiisen/SmartJson) is a simple tool to convert any class to JSON and convert json to Object.
+[SmartJson](https://github.com/koffiisen/SmartJson) is a simple tool to convert any class or dict to JSON and convert json to Object.
 
 Documentation
 ===============================================================================
 Features: 
+## ``version (2.0.1) ``
+* Fix script
+* update complex serialization
+* Add new method ([`serializeToJsonFile`]()) ``convert your class to json file``
+* [dict]() : ``Default parameter directory="outpout", filename="smart.json" ``
+* [class]() : ``Default parameter directory="outpout", filename="className.json"``
+
+* ### ex :
+    - ``SmartJson(Test()).serializeToJsonFile(directory="yourPath", filename="MyFileName.json")``
+    
+    - ``SmartJson(Test()).serializeToJsonFile() :=> (output) :=> outpout/Test.json ``
+
 ## ``version (2.0.0) ``
 **Support**  : 
 * ``Class``
@@ -74,7 +93,6 @@ To upgrade to latest version:
 
 ```python
 import datetime
-import json
 from collections import deque, OrderedDict
 from scripts.__smart_json__ import SmartJson
 
@@ -239,6 +257,9 @@ print(obj.people[0].name, obj.people[0].website)
 # Scott stackabuse.com
 
 ```
+### For support or coffee :)
+
+[![screenshot](https://github.com/koffiisen/SmartJson/blob/master/bymecoffee.PNG?raw=true) ](https://www.paypal.me/smartjson)
 
 ## Author : [Koffi Joel O.](https://github.com/koffiisen)
 

@@ -1,5 +1,75 @@
+import os
+from collections import OrderedDict, deque
+from datetime import datetime, date
+
+from scripts import SmartJson
+
+
+class Test:
+    def __init__(self):
+        self.name = "test"
+        self.date = datetime.now()
+        self.list = ["is list item", 1, datetime.now()]
+        self.complex = complex(2, -3)
+        self.bytes = "Me".encode("utf-8")
+        self.dict = {'url': "https://pypi.org/project/smartjson/", 'version': "2.0.0", 'author': "K.J.O",
+                     'date': date(2019, 10, 1)}
+        self.bool = True
+        self.float = 9500.50
+        self.int = 12
+        self.path = os.getcwd()
+        self.bytes = "pip install smartjson".encode("utf-8")
+
+
+class MyObject:
+    def __init__(self):
+        self.object = Test()
+        self.date = datetime.now()
+        self.id = 1
+        self.lastId = None
+        self.set = (["1", 12, datetime.now()])
+        self.list = [datetime.now(), 1]
+        self.ordereddict = OrderedDict([
+            ("b", OrderedDict([("b", 2), ("a", datetime.now())])),
+            ("a", OrderedDict([("b", 1), ("a", [((1, 'a'), (datetime.now(), 'b'))])]))
+        ])
+        self.deque = deque([
+            deque([1, 2]),
+            deque([3, 4]),
+        ])
+        # self.data = data
+
+
+data = {
+    "int": 1,
+    "str": "SmartJson",
+    "bytes": "pip install smartjson".encode("utf-8"),
+    "date": date(2010, 1, 1),
+    "datetime": datetime(2020, 1, 1, 18, 30, 0, 500),
+    "pull": Test(),
+    "set": (["1", 12, datetime.now()]),
+    "list": [datetime.now(), Test()],
+    "ordereddict": OrderedDict([
+        ("b", OrderedDict([("b", Test()), ("a", datetime.now())])),
+        ("a", OrderedDict([("b", 1), ("a", [((1, 'a'), (datetime.now(), 'b'))])])),
+    ]),
+    "deque": deque([
+        deque([1, 2]),
+        deque([3, 4]),
+    ]),
+    'complex': complex(42, 13)
+}
+
+if __name__ == '__main__':
+    print("")
+    print(SmartJson(Test()).serialize())
+    SmartJson(Test()).serializeToJsonFile()
+    # * dict : Default parameter directory="SmartJSON", filename="smart.json"
+    # * class : Default parameter directory="SmartJSON", filename="className.json"
+    SmartJson(Test()).serializeToJsonFile(directory="yourPath", filename="MyFileName.json")
+
+"""
 import datetime
-import json
 from collections import deque, OrderedDict
 from scripts.__smart_json__ import SmartJson
 
@@ -104,7 +174,7 @@ class Jobs:
 my_json = SmartJson(Jobs()).serialize()
 print(my_json)
 # print("Hello".encode("utf-8"))
-"""
+
 jb = Jobs()
 super_json = SuperJSON(jb)
 serialize = super_json.serialize(pretty=False)

@@ -1,21 +1,27 @@
 """
 Author : J. Koffi ONIPOH
-Version : 1.0.0
+Version : 2.0.1
 email: jolli644@gmail.com
 """
 
 import datetime
 import json
-from collections import OrderedDict
+import os
+from collections import OrderedDict, deque
+from copy import deepcopy
 
 
 class SmartJson:
-    def __init__(self, cls):
+    def __init__(self, cls=None):
         """
         :param cls:
         """
-        self.__classe = cls
+
+        self.__copy = cls
+        self.__classe = deepcopy(cls)
         self.___obj = None
+        if cls:
+            self.classname = cls.__class__.__name__
 
     def serialize(self, pretty=True):
         """
@@ -28,9 +34,46 @@ class SmartJson:
             elif isinstance(self.__classe, object):
                 self.___obj = SmartJson._DataTypeConversion(self.__classe).next()
                 if pretty:
-                    return json.dumps(self._serialize(self.___obj).__dict__, indent=2, sort_keys=True)
+                    return json.dumps({'' + self.classname: self._serialize(self.___obj).__dict__}, indent=2,
+                                      sort_keys=True)
                 else:
-                    return json.dumps(self._serialize(self.___obj).__dict__, sort_keys=True)
+                    return json.dumps({'' + self.classname: self._serialize(self.___obj).__dict__}, sort_keys=True)
+
+
+        except TypeError as e:
+            SmartJson._UnsupportedClass((type(self.___obj).__name__), e)
+
+    def serializeToJsonFile(self, directory="outpout", filename="smart.json"):
+        """
+        :param pretty:
+        :return:
+        """
+
+        try:
+            os.makedirs(directory)
+        except OSError:
+            if not os.path.isdir(directory):
+                raise
+
+        try:
+            if isinstance(self.__classe, dict):
+                with open(directory + "/" + filename, 'w') as outfile:
+                    json.dump(json.loads(SmartJson._DictConversion(self.__classe).serialize(pretty=True)), outfile,
+                              indent=2, sort_keys=True)
+            elif isinstance(self.__classe, object):
+                self.___obj = SmartJson._DataTypeConversion(self.__classe).next()
+
+                if filename != "smart.json":
+                    with open(directory + "/" + filename, 'w') as outfile:
+                        json.dump(json.loads(
+                            json.dumps({'' + self.classname: self._serialize(self.___obj).__dict__}, indent=2,
+                                       sort_keys=True)), outfile, indent=2, sort_keys=True)
+                else:
+                    with open(directory + "/" + self.classname + ".json", 'w') as outfile:
+                        json.dump(json.loads(
+                            json.dumps({'' + self.classname: self._serialize(self.___obj).__dict__}, indent=2,
+                                       sort_keys=True)), outfile, indent=2, sort_keys=True)
+
 
 
         except TypeError as e:
@@ -62,14 +105,16 @@ class SmartJson:
         return SmartJson._KObject(dic)
 
     def getClass(self):
-        return self.__classe
+        return self.__copy
 
     def _serialize(self, obj):
         for attr, value in vars(obj).items():
             if hasattr(value, "__class__"):
                 if isinstance(value, (
-                        int, float, bool, complex, list, tuple, str, datetime.datetime, datetime.date, bytes,
-                        type(None))):
+                        int, float, bool, complex, list, tuple, str, OrderedDict, dict,
+                        datetime.datetime, datetime.date, bytes, type(None))):
+                    continue
+                elif SmartJson._JsonConvert().get_class_name(value) == "builtins.dict":
                     continue
                 else:
                     obj.__setattr__(attr, value.__dict__)
@@ -80,58 +125,7 @@ class SmartJson:
     class _DataTypeConversion:
         def __init__(self, cls):
             self.___cls = cls
-
-        _dumpers = dict()
-        _loaders = dict()
-
-        def _dump(self, obj):
-            """Dump single object to json serializable value.
-            """
-            class_name = self._get_class_name(obj)
-            if class_name in self._dumpers:
-                return self._dumpers[class_name](self, obj)
-            raise TypeError("%r is not JSON serializable" % obj)
-
-        def _json_convert(self, obj):
-            """Recursive helper method that converts dict types to standard library
-            json serializable types, so they can be converted into json.
-            """
-            # OrderedDict
-
-            if isinstance(obj, OrderedDict):
-                try:
-                    return self._dump(obj)
-                except TypeError:
-                    return {k: self._json_convert(v) for k, v in self._iteritems(obj)}
-
-            # nested dict
-            elif isinstance(obj, dict):
-                return {k: self._json_convert(v) for k, v in self._iteritems(obj)}
-
-            # list or tuple
-            elif isinstance(obj, (list, tuple)):
-                return list((self._json_convert(v) for v in obj))
-
-            elif isinstance(obj, (datetime.datetime, datetime.date, complex)):
-                return str(obj)
-
-            elif hasattr(obj, "__class__"):
-                if isinstance(obj, (int, float, bool, complex, str, type(None))):
-                    pass
-                else:
-                    return SmartJson._DataTypeConversion(obj).next().__dict__
-
-            # single object
-            try:
-                return self._dump(obj)
-            except TypeError:
-                return obj
-
-        def _iteritems(self, d, **kw):
-            return iter(d.items(**kw))
-
-        def _get_class_name(self, obj):
-            return obj.__class__.__module__ + "." + obj.__class__.__name__
+            self._json_cvt = SmartJson._JsonConvert()
 
         def next(self):
             try:
@@ -143,13 +137,13 @@ class SmartJson:
             for attr, value in vars(cls).items():
                 if hasattr(value, "__class__"):
                     if isinstance(value, (datetime.datetime, datetime.date, complex)):
-                        cls.__setattr__(attr, self._json_convert(value))
+                        cls.__setattr__(attr, self._json_cvt.json_convert(value))
                     elif isinstance(value, (int, float, bool, str)):
                         continue
                     elif isinstance(value, (list, tuple)):
-                        cls.__setattr__(attr, list((self._json_convert(v) for v in value)))
-                    elif self._get_class_name(value) == "collections.deque":
-                        cls.__setattr__(attr, self._json_convert(OrderedDict(value)))
+                        cls.__setattr__(attr, list((self._json_cvt.json_convert(v) for v in value)))
+                    elif self._json_cvt.get_class_name(value) == "collections.deque":
+                        cls.__setattr__(attr, self._json_cvt.json_convert(OrderedDict(value)))
                     elif isinstance(value, type(None)):
                         cls.__setattr__(attr, "")
                     elif isinstance(value, bytes):
@@ -188,7 +182,8 @@ class SmartJson:
 
     class _DictConversion:
         def __init__(self, dict):
-            self.__dict = dict
+            self.__dict = deepcopy(dict)
+            self._json_cvt = SmartJson._JsonConvert()
 
         def serialize(self, pretty):
             if pretty:
@@ -203,16 +198,18 @@ class SmartJson:
                 elif isinstance(self.__dict[attr], bytes):
                     self.__dict[attr] = self.__dict[attr].decode("utf-8")
                 elif isinstance(self.__dict[attr], (list, tuple, set)):
-                    self.__dict[attr] = [self._json_convert(item) for item in self.__dict[attr]]
+                    self.__dict[attr] = [self._json_cvt.json_convert(item) for item in self.__dict[attr]]
                 elif isinstance(self.__dict[attr], OrderedDict):
-                    self.__dict[attr] = self._json_convert(self.__dict[attr])
-                elif self._get_class_name(self.__dict[attr]) == "collections.deque":
-                    self.__dict[attr] = self._json_convert(OrderedDict(self.__dict[attr]))
+                    self.__dict[attr] = self._json_cvt.json_convert(self.__dict[attr])
+                elif isinstance(self.__dict[attr], complex):
+                    self.__dict[attr] = self._json_cvt.json_convert(self.__dict[attr])
+                elif self._json_cvt.get_class_name(self.__dict[attr]) == "collections.deque":
+                    self.__dict[attr] = self._json_cvt.json_convert(OrderedDict(self.__dict[attr]))
                 elif hasattr(self.__dict[attr], "__class__"):
-                    if isinstance(self.__dict[attr], (int, float, bool, complex, str, type(None))):
+                    if isinstance(self.__dict[attr], (int, float, bool, str, type(None))):
                         continue
                     elif isinstance(self.__dict[attr], (list, tuple, set)):
-                        self.__dict[attr] = {[self._json_convert(item) for item in self.__dict[attr]]}
+                        self.__dict[attr] = {[self._json_cvt.json_convert(item) for item in self.__dict[attr]]}
                     else:
                         cls = self.__dict[attr]
                         serialize = SmartJson._DataTypeConversion(cls).next().__dict__
@@ -221,54 +218,55 @@ class SmartJson:
             return self.__dict
             # return json.dumps(self.__dict, indent=2, sort_keys=True)
 
-        _dumpers = dict()
-        _loaders = dict()
+    class _JsonConvert:
 
-        def _dump(self, obj):
-            """Dump single object to json serializable value.
-            """
-            class_name = self._get_class_name(obj)
-            if class_name in self._dumpers:
-                return self._dumpers[class_name](self, obj)
+        self_dumpers = dict()
+        self_loaders = dict()
+
+        def self_dump(self, obj):
+            class_name = self.get_class_name(obj)
+            if class_name in self.self_dumpers:
+                return self.self_dumpers[class_name](self, obj)
             raise TypeError("%r is not JSON serializable" % obj)
 
-        def _json_convert(self, obj):
-            """Recursive helper method that converts dict types to standard library
-            json serializable types, so they can be converted into json.
-            """
-            # OrderedDict
+        def json_convert(self, obj):
 
             if isinstance(obj, OrderedDict):
                 try:
-                    return self._dump(obj)
+                    return self.self_dump(obj)
                 except TypeError:
-                    return {k: self._json_convert(v) for k, v in self._iteritems(obj)}
+                    return {k: self.json_convert(v) for k, v in self.iter_items(obj)}
 
             # nested dict
             elif isinstance(obj, dict):
-                return {k: self._json_convert(v) for k, v in self._iteritems(obj)}
+                return {k: self.json_convert(v) for k, v in self.iter_items(obj)}
 
             # list or tuple
             elif isinstance(obj, (list, tuple)):
-                return list((self._json_convert(v) for v in obj))
+                return list((self.json_convert(v) for v in obj))
 
             elif isinstance(obj, (datetime.datetime, datetime.date)):
                 return str(obj)
 
+            elif isinstance(obj, complex):
+                return [{'expression': str(obj), 'real': obj.real, 'imag': obj.imag}]
+
             elif hasattr(obj, "__class__"):
-                if isinstance(obj, (int, float, bool, complex, str, type(None))):
+                if isinstance(obj, (int, float, bool, str, type(None))):
                     pass
+                elif isinstance(obj, complex):
+                    return [{'expression': str(obj), 'real': obj.real, 'imag': obj.imag}]
                 else:
                     return SmartJson._DataTypeConversion(obj).next().__dict__
 
             # single object
             try:
-                return self._dump(obj)
+                return self.self_dump(obj)
             except TypeError:
                 return obj
 
-        def _iteritems(self, d, **kw):
+        def iter_items(self, d, **kw):
             return iter(d.items(**kw))
 
-        def _get_class_name(self, obj):
+        def get_class_name(self, obj):
             return obj.__class__.__module__ + "." + obj.__class__.__name__
