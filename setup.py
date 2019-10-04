@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
     setup(
         name='smartjson',
-        version='2.0.2',
+        version='2.0.3',
         author="J. Koffi ONIPOH",
         author_email="jolli644@gmail.com",
         description="Python libraries to convert class to json or Tool to convert Class, object and dict to Json and Json to Object",

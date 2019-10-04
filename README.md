@@ -20,6 +20,9 @@
 Documentation
 ===============================================================================
 Features: 
+## ``version (2.0.3) ``
+* update list serialization
+
 ## ``version (2.0.2) ``
 * Fix script
 * Add script support enumeration (``enum``)
