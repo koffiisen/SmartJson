@@ -78,8 +78,8 @@ class Status(IntEnum):
 
 if __name__ == '__main__':
     print("")
-    SmartJson(complex(1,2)).serializeToJsonFile()
-    print(SmartJson(LoggerLevel).serialize())
+    SmartJson(complex(1, 2)).serializeToJsonFile()
+    print(SmartJson(["LoggerLevel", 1, datetime.now()]).serialize())
     # print(SmartJson(Test()).serialize())
 
 """

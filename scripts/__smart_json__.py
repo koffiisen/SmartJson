@@ -243,7 +243,7 @@ class SmartJson:
                 elif isinstance(attr, bytes):
                     convert_result.append(attr.decode("utf-8"))
                 elif isinstance(attr, (int, float, bool, str, type(None))):
-                    continue
+                    convert_result.append(attr)
                 elif isinstance(attr, (list, tuple, set)):
                     convert_result.append([self._json_cvt.json_convert(item) for item in attr])
                 elif isinstance(attr, OrderedDict):
