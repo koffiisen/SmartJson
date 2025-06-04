@@ -1,0 +1,22 @@
+name: Draft Release Notes
+
+on:
+  push:
+    branches:
+      - main # Or your default branch
+      # - master
+  # Optionally, run on PR close if you want to update draft on merge
+  # pull_request:
+  #   types: [closed]
+
+jobs:
+  update_release_draft:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Draft release notes
+        uses: release-drafter/release-drafter@v5
+        with:
+          config-name: release-drafter.yml # Optional: Explicitly point to your config file
+          # publish: false # Keep false to only draft. Set to true to auto-publish (not recommended for most workflows)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
