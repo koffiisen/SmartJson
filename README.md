@@ -262,21 +262,72 @@ To upgrade to latest version:
 
     $ pip install --upgrade smartjson
 
+# Quick Start
 
-# Usage
+Here's a brief overview of how to use `SmartJson` for common tasks.
+
+```python
+# example.py
+from __future__ import print_function, unicode_literals, division, absolute_import
+from smartjson import SmartJson
+import datetime
+
+# A simple class to demonstrate basic serialization
+class QuickStartUser:
+    def __init__(self, name, user_id, creation_time):
+        self.name = name
+        self.user_id = user_id
+        self.is_active = True
+        self.creation_time = creation_time
+
+if __name__ == '__main__':
+    # 1. Basic Object Serialization
+    user = QuickStartUser("Alex", 101, datetime.datetime.now())
+    smart_json_instance_user = SmartJson(user)
+    user_json_string = smart_json_instance_user.serialize(pretty=True)
+    print("Serialized User Object:")
+    print(user_json_string)
+
+    # 2. Basic Dictionary Serialization
+    sample_data = {
+        "project_name": "SmartJson Demo",
+        "version": "1.0"
+    }
+    smart_json_instance_dict = SmartJson(sample_data)
+    dict_json_string = smart_json_instance_dict.serialize(pretty=True)
+    print("Serialized Dictionary:")
+    print(dict_json_string)
+
+    # 3. Basic Deserialization
+    product_json = '{"product_id": "P123", "name": "Awesome Gadget"}'
+    sj_deserializer = SmartJson()
+    product_obj = sj_deserializer.toObject(product_json)
+    print("Deserialized Product Name: {}".format(product_obj.name))
+```
+
+For more detailed examples, including advanced type handling, schema validation, and file operations, please see the `examples/` directory in this repository.
+
+# Detailed Examples
+
+The `examples/` directory contains scripts demonstrating various features of SmartJson:
+
+-   **`examples/01_basic_serialization_deserialization.py`**: Covers fundamental serialization of Python dictionaries and objects, and deserialization of JSON strings back to `SmartJson` objects.
+-   **`examples/02_nested_data_and_types.py`**: Demonstrates handling complex structures like nested objects, lists, and various Python data types such as `datetime`, `Enum`, `deque`, `OrderedDict`, etc.
+-   **`examples/03_schema_validation_demo.py`**: A focused guide on defining and using schemas for data validation during both serialization and deserialization.
+-   **`examples/04_file_operations.py`**: Shows how to use `serializeToJsonFile` to save objects to JSON files and `toObjectFromFile` to load them back, including schema usage.
+
+You can run these examples directly to see `SmartJson` in action.
 
 ## Requirements
 
-[Python >= 2.7](https://www.python.org/downloads/) must be installed.
-
-## Parameters
-
-* `class or object or dict`:  you want to convert to json
+[Python >= 2.7](https://www.python.org/downloads/) (Python 3.6+ recommended). Dependencies like `six` and `enum34` (for Python < 3.4) are handled by `pip install`.
 
 ## Project structure:
 
-* `scripts` - source code of a package
-* `example.py` - working examples
+* `smartjson` - source code of the package
+* `examples/` - directory with detailed example scripts
+* `tests/` - unit tests
+* `example.py` - a very basic quick start script
 
 ## Contribute
 
@@ -286,176 +337,6 @@ To upgrade to latest version:
 1. Make a pull request
 1. Happy contribution!
 
-## EXAMPLE
-
-### Class
-
-```python
-import datetime
-from collections import deque, OrderedDict
-from scripts.__smart_json__ import SmartJson
-
-
-class Test:
-    def __init__(self):
-        self.test = "none"
-        self.id = 2
-        self.date = datetime.datetime.now()
-        self.tuple = [((1, 'a'), (2, 'b'))]
-
-
-data = {
-    "int": 1,
-    "str": "SmartJson",
-    "bytes": "pip install smartjson".encode("utf-8"),
-    "date": datetime.date(2010, 1, 1),
-    "datetime": datetime.datetime(2020, 1, 1, 18, 30, 0, 500),
-    "pull": Test(),
-    "set": (["1", 12, datetime.datetime.now()]),
-    "list": [datetime.datetime.now(), Test()],
-    "ordereddict": OrderedDict([
-        ("b", OrderedDict([("b", Test()), ("a", datetime.datetime.now())])),
-        ("a", OrderedDict([("b", 1), ("a", [((1, 'a'), (datetime.datetime.now(), 'b'))])])),
-    ]),
-    "deque": deque([
-        deque([1, 2]),
-        deque([3, 4]),
-    ])
-}
-
-
-class Pull:
-    def __init__(self):
-        self.id = 2
-        self.title = "Iam pull"
-        self.author = "Joel O."
-        self.subPull = Pull.SubPull()
-        self.data = data
-        self.date = datetime.datetime.now()
-        self.list = [1, datetime.datetime.now(), Pull.SubPull()]
-
-    class SubPull:
-        def __init__(self):
-            self.subId = 3
-            self.subTitle = "I am sub title"
-            self.subAuthor = "OKJ."
-            self.date = datetime.date(2010, 1, 1)
-
-# Example
-my_json = SmartJson(data).serialize()
-print(my_json)
-
-```
-
-### Output: 
-```json
-{
-  "bytes": "pip install smartjson",
-  "date": "2010-01-01",
-  "datetime": "2020-01-01 18:30:00.000500",
-  "deque": {
-    "1": 2,
-    "3": 4
-  },
-  "int": 1,
-  "list": [
-    "2019-10-01 19:39:01.916122",
-    {
-      "date": "2019-10-01 19:39:01.916122",
-      "id": 2,
-      "test": "none",
-      "tuple": [
-        [
-          [
-            1,
-            "a"
-          ],
-          [
-            2,
-            "b"
-          ]
-        ]
-      ]
-    }
-  ],
-  "ordereddict": {
-    "a": {
-      "a": [
-        [
-          [
-            1,
-            "a"
-          ],
-          [
-            "2019-10-01 19:39:01.916122",
-            "b"
-          ]
-        ]
-      ],
-      "b": 1
-    },
-    "b": {
-      "a": "2019-10-01 19:39:01.916122",
-      "b": {
-        "date": "2019-10-01 19:39:01.916122",
-        "id": 2,
-        "test": "none",
-        "tuple": [
-          [
-            [
-              1,
-              "a"
-            ],
-            [
-              2,
-              "b"
-            ]
-          ]
-        ]
-      }
-    }
-  },
-  "pull": {
-    "date": "2019-10-01 19:39:01.916122",
-    "id": 2,
-    "test": "none",
-    "tuple": [
-      [
-        [
-          1,
-          "a"
-        ],
-        [
-          2,
-          "b"
-        ]
-      ]
-    ]
-  },
-  "set": [
-    "1",
-    12,
-    "2019-10-01 19:39:01.916122"
-  ],
-  "str": "SmartJson"
-}
-```
-### Json to Object
-```text
-
-objFromFile = smart_json.toObjectFromFile("jobs.json")
-obj = smart_json.toObject('{"people":[{"name":"Scott", "website":"stackabuse.com", "from":"Nebraska"}]}')
-obj2 = smart_json.toObject({'item': 'Beer', 'cost': '£4.00'})
-
-print(obj2.item, obj2.cost)
-print(objFromFile.job.item.another.precision)
-print(obj.people[0].name, obj.people[0].website)
-
-# Beer £4.00
-# 99.56
-# Scott stackabuse.com
-
-```
 ### For support or coffee :)
 
 [![screenshot](https://github.com/koffiisen/SmartJson/blob/master/bymecoffee.PNG?raw=true) ](https://www.paypal.me/smartjson)

@@ -1,182 +1,63 @@
+# example.py
 from __future__ import print_function, unicode_literals, division, absolute_import
-import os
-from collections import OrderedDict, deque
-from datetime import datetime, date
-from enum import Enum, IntEnum
-
 from smartjson import SmartJson
+import datetime
 
-
-class Test:
-    def __init__(self):
-        self.name = "test"
-        self.date = datetime.now()
-        self.list = ["is list item", 1, datetime.now()]
-        self.complex = complex(2, -3)
-        self.bytes = "Me".encode("utf-8")
-        self.dict = {'url': "https://pypi.org/project/smartjson/", 'version': "2.0.0", 'author': "K.J.O",
-                     'date': date(2019, 10, 1)}
-        self.bool = True
-        self.float = 9500.50
-        self.int = 12
-        self.path = os.getcwd()
-        self.bytes = "pip install smartjson".encode("utf-8")
-
-
-class MyObject:
-    def __init__(self):
-        self.object = Test()
-        self.date = datetime.now()
-        self.id = 1
-        self.lastId = None
-        self.set = (["1", 12, datetime.now()])
-        self.list = [datetime.now(), 1]
-        self.ordereddict = OrderedDict([
-            ("b", OrderedDict([("b", 2), ("a", datetime.now())])),
-            ("a", OrderedDict([("b", 1), ("a", [((1, 'a'), (datetime.now(), 'b'))])]))
-        ])
-        self.deque = deque([
-            deque([1, 2]),
-            deque([3, 4]),
-        ])
-        # self.data = data
-
-
-data = {
-    "int": 1,
-    "str": "SmartJson",
-    "bytes": "pip install smartjson".encode("utf-8"),
-    "date": date(2010, 1, 1),
-    "datetime": datetime(2020, 1, 1, 18, 30, 0, 500),
-    "pull": Test(),
-    "set": (["1", 12, datetime.now()]),
-    "list": [datetime.now(), Test()],
-    "ordereddict": OrderedDict([
-        ("b", OrderedDict([("b", Test()), ("a", datetime.now())])),
-        ("a", OrderedDict([("b", 1), ("a", [((1, 'a'), (datetime.now(), 'b'))])])),
-    ]),
-    "deque": deque([
-        deque([1, 2]),
-        deque([3, 4]),
-    ]),
-    'complex': complex(42, 13)
-}
-
-
-class LoggerLevel(Enum):
-    CRITICAL = 'CRITICAL'
-    ERROR = 'ERROR'
-    WARNING = 'WARNING'
-    INFO = 'INFO'
-    DEBUG = 'DEBUG'
-    NOTSET = data
-
-
-class Status(IntEnum):
-    success = 0
-    failure = 1
-
+# A simple class to demonstrate basic serialization
+class QuickStartUser:
+    def __init__(self, name, user_id, creation_time):
+        self.name = name
+        self.user_id = user_id
+        self.is_active = True
+        self.creation_time = creation_time
 
 if __name__ == '__main__':
-    print("")
-    SmartJson(complex(1, 2)).serializeToJsonFile()
-    print(SmartJson(["LoggerLevel", 1, datetime.now()]).serialize())
-    # print(SmartJson(Test()).serialize())
+    print("### SmartJson Quick Start Example ###")
 
-"""
-class Test:
-    def __init__(self):
-        self.test = "none"
-        self.id = 2
-        self.date = datetime.now()
-        self.tuple = [((1, 'a'), (2, 'b'))]
+    # 1. Basic Object Serialization
+    print("\n--- Serializing a Python Object ---")
+    user = QuickStartUser("Alex", 101, datetime.datetime.now())
+    smart_json_instance_user = SmartJson(user)
+    user_json_string = smart_json_instance_user.serialize(pretty=True)
 
+    print("Serialized User Object:")
+    print(user_json_string)
 
-data = {
-    "int": 1,
-    "str": "SmartJson",
-    "bytes": "pip install smartjson".encode("utf-8"),
-    "date": date(2010, 1, 1),
-    "datetime": datetime(2020, 1, 1, 18, 30, 0, 500),
-    "pull": Test(),
-    "set": (["1", 12, datetime.now()]),
-    "list": [datetime.now(), Test()],
-    "ordereddict": OrderedDict([
-        ("b", OrderedDict([("b", Test()), ("a", datetime.now())])),
-        ("a", OrderedDict([("b", 1), ("a", [((1, 'a'), (datetime.now(), 'b'))])])),
-    ]),
-    "deque": deque([
-        deque([1, 2]),
-        deque([3, 4]),
-    ])
-}
+    # 2. Basic Dictionary Serialization
+    print("\n--- Serializing a Python Dictionary ---")
+    sample_data = {
+        "project_name": "SmartJson Demo",
+        "version": "1.0",
+        "supported_features": ["serialization", "deserialization", "schema_validation"]
+    }
+    smart_json_instance_dict = SmartJson(sample_data)
+    dict_json_string = smart_json_instance_dict.serialize(pretty=True)
 
+    print("Serialized Dictionary:")
+    print(dict_json_string)
 
-class Pull:
-    def __init__(self):
-        self.id = 2
-        self.title = "Iam pull"
-        self.author = "Joel O."
-        self.subPull = Pull.SubPull()
-        self.data = data
-        self.date = datetime.now()
-        self.list = [1, datetime.now(), Pull.SubPull()]
+    # 3. Basic Deserialization (JSON string to SmartJson._KObject)
+    print("\n--- Deserializing a JSON String ---")
+    product_json = '''
+    {
+        "product_id": "P123",
+        "name": "Awesome Gadget",
+        "price": 99.99,
+        "tags": ["electronics", "cool"]
+    }
+    '''
+    sj_deserializer = SmartJson() # Create an empty instance for deserialization
+    product_obj = sj_deserializer.toObject(product_json)
 
-    class SubPull:
-        def __init__(self):
-            self.subId = 3
-            self.subTitle = "I am sub title"
-            self.subAuthor = "OKJ."
-            self.date = date(2010, 1, 1)
+    print("Deserialized Product (as SmartJson._KObject):")
+    # Using .format for Python 2 compatibility in this example script
+    print("Product Name: {}".format(product_obj.name))
+    print("Price: {}".format(product_obj.price))
+    print("First Tag: {}".format(product_obj.tags[0]))
 
-
-class Jobs:
-    def __init__(self):
-        self.name = 'John'
-        self.url = "5444"
-        self.id = 1
-        self.job = Jobs.Job()
-        self.data = {
-            "int": 1,
-            "str": "SmartJson",
-            "bytes": "pip install smartjson".encode("utf-8"),
-            "date": date(2010, 1, 1)
-        }
-
-    def name(self, set=None):
-        if set != None:
-            self.name = set
-
-        return self.name
-
-    class Job:
-        def __init__(self):
-            self.job_name = 'Test'
-            self.job_url = "_blank"
-            self.date = datetime.now().strftime('%m/%d/%Y')
-            self.date2 = datetime.now()
-            self.item = Jobs.Item()
-            self.pull = Pull()
-
-    class Item:
-        def __init__(self):
-            self.item_name = 'item 1'
-            self.item_boof = datetime.now()
-            self.mylist = [1, 2, 3]
-            self.another = Jobs.Item.Another()
-
-        class Another:
-            def __init__(self):
-                self.age = 26
-                self.precision = 99.56
-                self.ville = "Lille"
-                self.meteo = Jobs.Item.Another.Meteo()
-
-            class Meteo:
-                def __init__(self):
-                    self.pluie = True
-                    self.complex = complex(12, 78)
-                    self.tuple = [((1, 'a'), (2, 'b'))]
-                    self.none = None
-
-"""
+    print("\nFor more detailed examples, please see the scripts in the 'examples/' directory.")
+    print("These include demonstrations of:")
+    print("- Nested data structures and various data types")
+    print("- Schema validation for serialization and deserialization")
+    print("- File operations (saving to and loading from JSON files)")
+    print("- And more basic use cases.")
