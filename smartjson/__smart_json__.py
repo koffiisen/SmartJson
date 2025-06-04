@@ -1,3 +1,6 @@
+from __future__ import print_function, unicode_literals, division, absolute_import
+import six # For Python 2/3 compatibility
+import io  # For consistent file I/O
 """
 Author : J. Koffi ONIPOH
 Version : 2.0.2
@@ -34,7 +37,8 @@ class SmartJson:
                 return SmartJson._DictConversion(self.__classe, visited_set).serialize(pretty)
             elif isinstance(self.__classe, list):
                 return SmartJson._ListConversion(self.__classe, visited_set).serialize(pretty)
-            elif isinstance(self.__classe, (int, float, bool, str, type(None))):
+            # Adjusted str check for six.string_types
+            elif isinstance(self.__classe, (int, float, bool, six.string_types, type(None))):
                 # Primitive types do not participate in circular dependencies themselves
                 if pretty:
                     return json.dumps(self.__classe, indent=2, sort_keys=True)
@@ -88,8 +92,12 @@ class SmartJson:
 
             filepath = os.path.join(directory, output_filename)
 
-            with open(filepath, 'w') as outfile:
-                # self.serialize already returns a JSON string, no need to json.loads then json.dump
+            # Use io.open for consistent encoding
+            with io.open(filepath, 'w', encoding='utf-8') as outfile:
+                # self.serialize already returns a JSON string
+                # Ensure it's unicode for Py2 io.open
+                if six.PY2 and isinstance(serialized_data, str): # str in Py2 is bytes
+                    serialized_data = serialized_data.decode('utf-8')
                 outfile.write(serialized_data)
 
         except SmartJsonError: # Re-raise our specific errors from self.serialize()
@@ -108,11 +116,16 @@ class SmartJson:
         :raises SmartJsonDeserializationError: If the file is not found, not a valid JSON, or other deserialization issues.
         """
         try:
-            with open(jsonFile) as outfile:
+            # Use io.open for consistent encoding
+            with io.open(jsonFile, 'r', encoding='utf-8') as outfile:
                 dic = json.load(outfile)
                 return SmartJson._KObject(dic)
-        except FileNotFoundError:
+        except FileNotFoundError: # Py3 specific, Py2 uses IOError
             raise SmartJsonDeserializationError(f"JSON file not found: {jsonFile}")
+        except IOError as e: # Catch Py2's FileNotFoundError equivalent
+            if e.errno == 2: # errno.ENOENT
+                 raise SmartJsonDeserializationError(f"JSON file not found: {jsonFile}")
+            raise SmartJsonDeserializationError(f"I/O error reading file '{jsonFile}'", original_exception=e)
         except json.JSONDecodeError as e:
             raise SmartJsonDeserializationError(f"Invalid JSON format in file '{jsonFile}': {e.message}", original_exception=e)
         except SmartJsonError: # Re-raise if _KObject init raises one
@@ -131,17 +144,22 @@ class SmartJson:
         """
         dic = None
         try:
-            if isinstance(_json, str):
+            if isinstance(_json, six.binary_type): # Handle bytes input
+                _json = _json.decode('utf-8')
+
+            if isinstance(_json, six.string_types):
                 dic = json.loads(_json)
             elif isinstance(_json, dict):
                 dic = _json
             else:
                 raise SmartJsonDeserializationError(
-                    f"Invalid input type for deserialization: Expected a JSON string or a dictionary, got {type(_json).__name__}.")
+                    f"Invalid input type for deserialization: Expected a JSON string, bytes, or a dictionary, got {type(_json).__name__}.")
 
             return SmartJson._KObject(dic)
         except json.JSONDecodeError as e:
-            raise SmartJsonDeserializationError(f"Invalid JSON format in input string: {e.message}", original_exception=e)
+            raise SmartJsonDeserializationError(f"Invalid JSON format in input: {e.message}", original_exception=e)
+        except UnicodeDecodeError as e:
+            raise SmartJsonDeserializationError("Input bytes could not be decoded using UTF-8", original_exception=e)
         except SmartJsonError: # Re-raise if _KObject init raises one
             raise
         except Exception as e: # Catch other errors during _KObject creation
@@ -152,18 +170,17 @@ class SmartJson:
         return self.__copy
 
     def _serialize(self, obj):
-        for attr, value in vars(obj).items():
-            if hasattr(value, "__class__"):
-                if isinstance(value, (
-                        int, float, bool, complex, list, tuple, str, OrderedDict, dict,
-                        datetime.datetime, datetime.date, bytes, type(None))):
-                    continue
-                elif SmartJson._JsonConvert().get_class_name(value) == "builtins.dict":
-                    continue
-                else:
-                    obj.__setattr__(attr, value.__dict__)
-                    self._serialize(value)
+        # This method's original recursive logic is now handled by _DataTypeConversion and _convert_value.
+        # self.___obj (which is passed as 'obj' here) should already have its attributes
+        # converted to JSON-serializable forms (e.g., custom objects replaced by their dicts)
+        # by the time _DataTypeConversion(...).convert() finishes.
+        # Therefore, this method primarily serves to return the object itself,
+        # as its __dict__ will be taken by the caller in SmartJson.serialize().
 
+        # A check could be added here to ensure obj's attributes are indeed serializable,
+        # but the current design relies on earlier stages to have done this.
+        # For Py2/3 with six, vars(obj).items() should be six.iteritems(vars(obj)) if we were iterating.
+        # However, since this method is now a pass-through, no iteration is done here.
         return obj
 
     class _BaseConversion:
@@ -220,13 +237,13 @@ class SmartJson:
             :raises SmartJsonCircularDependencyError: If a circular dependency is detected.
             """
             # Primitive types that don't cause cycles or are immutable don't need ID tracking here.
-            if isinstance(value, (int, float, bool, str, type(None), bytes, datetime.date, datetime.datetime, complex)):
-                # For bytes, datetime, complex, conversion might happen via _json_cvt if complex enough,
-                # but the value itself isn't added to visited here as it's not a container for this method's check.
-                if isinstance(value, bytes): return value.decode("utf-8")
-                if isinstance(value, type(None)): return ""
+            # Use six.string_types for string check, six.binary_type for bytes.
+            if isinstance(value, (int, float, bool, six.string_types, type(None), six.binary_type, datetime.date, datetime.datetime, complex)):
+                if isinstance(value, six.binary_type): return value.decode("utf-8")
+                if isinstance(value, type(None)): return "" # Keep original behavior
                 if isinstance(value, (datetime.datetime, datetime.date, complex)):
-                    return self._json_cvt.json_convert(value) # _json_cvt handles its own visited logic for these
+                    return self._json_cvt.json_convert(value)
+                # int, float, bool, six.string_types are returned as is
                 return value
 
             # For container types (list, tuple, dict) and custom objects, check for cycles.
@@ -253,28 +270,16 @@ class SmartJson:
                     # _DictConversion constructor takes visited set
                     return SmartJson._DictConversion(value, self.visited).convert()
                 # Check for custom objects:
-                elif not isinstance(value, (str, int, float, bool, type(None), # Already handled
-                                            datetime.date, datetime.datetime, complex, bytes, # Already handled
+                # Adjusted string/bytes check for the custom object path using six
+                elif not isinstance(value, (six.string_types, int, float, bool, type(None), # Already handled
+                                            datetime.date, datetime.datetime, complex, six.binary_type, # Already handled
                                             list, tuple)) and \
                      self._json_cvt.get_class_name(value) not in ["collections.deque", "enum.EnumMeta"] and \
                      hasattr(value, "__class__"):
                     # _DataTypeConversion constructor takes visited set. It handles its own add/remove for obj_id.
-                    # So, we don't add/remove obj_id for it here again.
-                    # The ID was added above, _DataTypeConversion will check it. If it proceeds,
-                    # it will manage this ID for its own scope. This is a slight duplication of add/remove
-                    # if _DataTypeConversion is called, as it will also add/remove.
-                    # More accurately, _DataTypeConversion itself should handle the add/remove for the specific 'value'
-                    # it processes, which is what it does now.
-                    # So, the add/remove here is for the *current* value being processed by _convert_value.
-                    # If 'value' is a custom object, _DataTypeConversion(value, self.visited) will be called.
-                    # _DataTypeConversion.convert() will then do its own add(id(value))/remove(id(value)).
                     return SmartJson._DataTypeConversion(value, self.visited).convert().__dict__
 
-                # Fallback for any other types not explicitly handled.
-                # If it's a custom type not caught by the above, it might not be serializable.
-                # The original code returned 'value', relying on json.dumps to fail.
-                # We can do the same, or be stricter. For now, maintain original behavior.
-                return value
+                return value # Fallback
             finally:
                 if obj_id in self.visited: # Ensure it was added before removing
                     self.visited.remove(obj_id)
@@ -322,12 +327,13 @@ class SmartJson:
 
         def __convert_attributes(self, cls_obj): # self.visited is used by self._convert_value implicitly
             """Helper method to perform the attribute conversion."""
-            for attr, value in vars(cls_obj).items():
+            # Use six.iteritems for iterating over dictionary items
+            for attr, value in six.iteritems(vars(cls_obj)):
                 # Optimization: skip basic immutable types that don't need conversion
-                if isinstance(value, (int, float, bool, str)):
+                # Use six.string_types for string check
+                if isinstance(value, (int, float, bool, six.string_types)):
                     continue
 
-                # _convert_value will use self.visited for its cycle checks during deeper recursion
                 converted_value = self._convert_value(value)
                 cls_obj.__setattr__(attr, converted_value)
             return cls_obj
@@ -371,12 +377,15 @@ class SmartJsonUnsupportedTypeError(SmartJsonError):
         def __init__(self, d):
             if not isinstance(d, dict):
                 raise SmartJsonDeserializationError(f"Cannot create _KObject from type '{type(d).__name__}'. Expected a dictionary structure.")
-            for a, b in d.items():
+            # Use six.iteritems for iterating dictionary items
+            for a, b in six.iteritems(d):
                 try:
                     if isinstance(b, (list, tuple)):
                         setattr(self, a, [self.__class__(x) if isinstance(x, dict) else x for x in b])
-                    elif isinstance(b, str):
+                    # Use six.string_types for string check
+                    elif isinstance(b, six.string_types):
                         try:
+                            # Attempt to parse as datetime
                             setattr(self, a, datetime.datetime.strptime(b, "%Y-%m-%d %H:%M:%S.%f"))
                         except ValueError: # If not a datetime string, keep as string
                             setattr(self, a, b)
@@ -406,7 +415,8 @@ class SmartJsonUnsupportedTypeError(SmartJsonError):
             """
             if self._json_cvt.get_class_name(self.__myEnum) == "enum.EnumMeta":
                 converts = {}
-                for attr, value in vars(self.__myEnum).items():
+                # Use six.iteritems for iterating dictionary items
+                for attr, value in six.iteritems(vars(self.__myEnum)):
                     if "_member_names_" == attr:
                         for member_name in value: # Iterate through member names
                             # Access enum member by name to get its value
@@ -485,7 +495,8 @@ class SmartJsonUnsupportedTypeError(SmartJsonError):
 
             :return: The modified dictionary with its values converted.
             """
-            for key, value in self.__data.items(): # Iterate over original key-value pairs
+            # Use six.iteritems for iterating dictionary items
+            for key, value in six.iteritems(self.__data): # Iterate over original key-value pairs
                 converted_value = self._convert_value(value)
                 self.__data[key] = converted_value
 
@@ -522,12 +533,13 @@ class SmartJsonUnsupportedTypeError(SmartJsonError):
             Uses self.visited for cycle detection in recursive calls.
             """
             # Handle types that don't participate in cycles or are immutable first.
-            if isinstance(obj, (int, float, bool, str, type(None), bytes, datetime.date, datetime.datetime, complex)):
-                if isinstance(obj, bytes): return obj.decode("utf-8")
+            # Use six.string_types and six.binary_type
+            if isinstance(obj, (int, float, bool, six.string_types, type(None), six.binary_type, datetime.date, datetime.datetime, complex)):
+                if isinstance(obj, six.binary_type): return obj.decode("utf-8")
                 if isinstance(obj, type(None)): return ""
                 if isinstance(obj, (datetime.datetime, datetime.date)): return str(obj)
                 if isinstance(obj, complex): return [{'expression': str(obj), 'real': obj.real, 'imag': obj.imag}]
-                return obj
+                return obj # int, float, bool, six.string_types
 
             # For container types and custom objects, check for cycles.
             obj_id = id(obj)
@@ -543,9 +555,11 @@ class SmartJsonUnsupportedTypeError(SmartJsonError):
                     try:
                         return self.self_dump(obj) # self_dump uses self.visited implicitly
                     except SmartJsonUnsupportedTypeError:
-                        return {k: self.json_convert(v) for k, v in self.iter_items(obj)} # Recursive call
+                        # Use six.iteritems for iterating dictionary items
+                        return {k: self.json_convert(v) for k, v in six.iteritems(obj)} # Recursive call
                 elif isinstance(obj, dict):
-                    return {k: self.json_convert(v) for k, v in self.iter_items(obj)} # Recursive call
+                    # Use six.iteritems for iterating dictionary items
+                    return {k: self.json_convert(v) for k, v in six.iteritems(obj)} # Recursive call
                 elif isinstance(obj, (list, tuple)):
                     return list((self.json_convert(v) for v in obj)) # Recursive call
 
@@ -569,8 +583,8 @@ class SmartJsonUnsupportedTypeError(SmartJsonError):
         # Outer try-except for SmartJsonError/Exception removed as it was too broad for this method.
         # Errors should propagate to be caught by the primary serialization methods.
 
-        def iter_items(self, d, **kw):
-            return iter(d.items(**kw))
+        def iter_items(self, d, **kw): # This method is used by json_convert for OrderedDicts.
+            return six.iteritems(d, **kw) # Use six.iteritems
 
         def get_class_name(self, obj):
             return obj.__class__.__module__ + "." + obj.__class__.__name__

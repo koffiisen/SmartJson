@@ -1,7 +1,10 @@
+from __future__ import print_function, unicode_literals, division, absolute_import
 import unittest
 import os
+import io # For Python 2/3 compatible file I/O
+import six # For Python 2/3 compatibility
 import json # For malformed JSON test
-from scripts.__smart_json__ import (
+from smartjson.__smart_json__ import (
     SmartJson,
     SmartJsonError,
     SmartJsonSerializationError,
@@ -118,7 +121,8 @@ class TestSmartJson(unittest.TestCase):
     def test_deserialize_malformed_json_string(self):
         sj = SmartJson()
         malformed_json = '{"name": "test", "value": 123,' # Missing closing brace
-        with self.assertRaisesRegex(SmartJsonDeserializationError, "Invalid JSON format in input string"):
+        # Regex to match the custom part of the message, allowing for variability in the original exception part.
+        with self.assertRaisesRegex(SmartJsonDeserializationError, r"Invalid JSON format in input:.*"):
             sj.toObject(malformed_json)
 
     def test_deserialize_malformed_json_file(self):
@@ -135,10 +139,13 @@ class TestSmartJson(unittest.TestCase):
         temp_file_name = os.path.join(test_dir, "malformed_temp.json")
 
         try:
-            with open(temp_file_name, "w") as f:
+            with io.open(temp_file_name, "w", encoding='utf-8') as f:
                 f.write(malformed_json_content)
 
-            with self.assertRaisesRegex(SmartJsonDeserializationError, f"Invalid JSON format in file '{temp_file_name}'"):
+            # Regex to match the custom part, allowing variability in the original exception part.
+            # Need to escape temp_file_name if it can contain regex special characters.
+            # For simplicity, assuming temp_file_name is simple.
+            with self.assertRaisesRegex(SmartJsonDeserializationError, r"Invalid JSON format in file '{}':.*".format(temp_file_name)):
                 sj.toObjectFromFile(temp_file_name)
         finally:
             if os.path.exists(temp_file_name):
@@ -149,7 +156,7 @@ class TestSmartJson(unittest.TestCase):
         # when given a non-enum type.
         try:
             # Accessing internal class for a more direct unit test
-            from scripts.__smart_json__ import SmartJson as SJ_Internal
+            from smartjson.__smart_json__ import SmartJson as SJ_Internal
             non_enum_obj = SimpleObject("test", 1)
             # _EnumConversion constructor expects 'visited' set
             enum_converter = SJ_Internal._EnumConversion(non_enum_obj, set())

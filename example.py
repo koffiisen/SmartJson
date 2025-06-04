@@ -1,9 +1,10 @@
+from __future__ import print_function, unicode_literals, division, absolute_import
 import os
 from collections import OrderedDict, deque
 from datetime import datetime, date
 from enum import Enum, IntEnum
 
-from scripts import SmartJson
+from smartjson import SmartJson
 
 
 class Test:
