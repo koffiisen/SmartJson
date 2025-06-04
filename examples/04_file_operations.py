@@ -1,7 +1,7 @@
 # examples/04_file_operations.py
 from __future__ import print_function, unicode_literals, division, absolute_import
 from smartjson import SmartJson
-from smartjson.__smart_json__ import SmartJsonSchemaValidationError # For catching the specific error
+from smartjson.core import SmartJsonSchemaValidationError # For catching the specific error
 import datetime
 import os
 import six # For types in schema

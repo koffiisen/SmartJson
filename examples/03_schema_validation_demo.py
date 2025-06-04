@@ -1,7 +1,7 @@
 # examples/03_schema_validation_demo.py
 from __future__ import print_function, unicode_literals, division, absolute_import
 from smartjson import SmartJson
-from smartjson.__smart_json__ import SmartJsonSchemaValidationError # For catching the specific error
+from smartjson.core import SmartJsonSchemaValidationError # For catching the specific error
 import six # For types in schema if needed for Py2/3 consistency in definition
 
 print("### Schema Validation Demo ###")
