@@ -198,6 +198,8 @@ The `toObject()` method (and `toObjectFromFile()`) returns an instance of `Smart
     # Example for deserializing JSON to a point-like structure
     # point_schema_deserialization = {'x': {'type': "int", 'required': True}, 'y': {'type': "int", 'required': True}}
     ```
+    *(See the "Schema Validation" section below for a detailed explanation of schema definitions.)*
+
 *   **Using with Serialization**:
     ```python
     # my_point_object = Point(10, 20)
