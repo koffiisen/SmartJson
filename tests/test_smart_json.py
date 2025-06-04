@@ -4,7 +4,7 @@ import os
 import io # For Python 2/3 compatible file I/O
 import six # For Python 2/3 compatibility
 import json # For malformed JSON test
-from smartjson.__smart_json__ import (
+from smartjson.core import (
     _KObject,
     SmartJson,
     SmartJsonError,
@@ -223,7 +223,7 @@ class TestSmartJson(unittest.TestCase):
         # when given a non-enum type.
         try:
             # Accessing internal class for a more direct unit test
-            from smartjson.__smart_json__ import SmartJson as SJ_Internal
+            from smartjson.core import SmartJson as SJ_Internal
             non_enum_obj = SimpleObject("test", 1)
             # _EnumConversion constructor expects 'visited' set
             enum_converter = SJ_Internal._EnumConversion(non_enum_obj, set())
