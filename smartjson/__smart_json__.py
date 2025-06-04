@@ -544,31 +544,31 @@ class SmartJson(object):
     # The _json_cvt instance in _BaseConversion is also properly initialized.
     # The key is that *all* references to helper classes are now direct, e.g., `_HelperClass(...)`.
     # And that these helper classes are defined at the module level before SmartJson class.The file `smartjson/__smart_json__.py` has been rewritten.
-
-**Summary of changes:**
-
-1.  **Class Scope**: All helper classes (`_KObject`, `_JsonConvert`, `_BaseConversion`, `_DataTypeConversion`, `_ListConversion`, `_DictConversion`, `_EnumConversion`) are now defined at the module level (top-level), not nested within the `SmartJson` class.
-2.  **Definition Order**: The module-level classes are defined in the following order to ensure dependencies are met:
-    *   All custom exception classes.
-    *   `_KObject`
-    *   `_JsonConvert`
-    *   `_BaseConversion` (depends on `_JsonConvert`)
-    *   `_DataTypeConversion` (depends on `_BaseConversion`)
-    *   `_ListConversion` (depends on `_BaseConversion`)
-    *   `_DictConversion` (depends on `_BaseConversion`)
-    *   `_EnumConversion` (depends on `_JsonConvert` and `_DictConversion`)
-    *   `SmartJson` (the main class, defined last)
-3.  **Class References**:
-    *   All internal references to these helper classes within the `SmartJson` methods (e.g., `serialize`, `toObject`) and within the helper classes themselves have been updated to use the direct class names (e.g., `_DictConversion(...)` instead of `SmartJson._DictConversion(...)`).
-4.  **Python 2 Compatibility**:
-    *   All classes now explicitly inherit from `object` (e.g., `class _KObject(object):`).
-    *   `super()` calls in derived helper classes have been updated to the Python 2 compatible syntax (e.g., `super(_DataTypeConversion, self).__init__(visited)`).
-    *   f-strings in exception messages have been replaced with `.format()` for broader Python version compatibility.
-    *   The `__str__` method in `SmartJsonError` was adjusted to handle potential byte/unicode issues in Python 2 when formatting the final error string.
-5.  **Serialization Logic in `SmartJson.serialize`**:
-    *   When `self.__classe` is a tuple, complex, datetime, or OrderedDict, it now correctly instantiates a module-level `_JsonConvert(visited_set)` for the conversion.
-    *   Similarly, when checking if `self.__classe` is an EnumMeta, it uses `_JsonConvert(visited_set).get_class_name(...)`.
+    # # **Summary of changes:**
+    # 1.  **Class Scope**: All helper classes (`_KObject`, `_JsonConvert`, `_BaseConversion`, `_DataTypeConversion`, `_ListConversion`, `_DictConversion`, `_EnumConversion`) are now defined at the module level (top-level), not nested within the `SmartJson` class.
+    # 2.  **Definition Order**: The module-level classes are defined in the following order to ensure dependencies are met:
+    #     *   All custom exception classes.
+    #     *   `_KObject`
+    #     *   `_JsonConvert`
+    #     *   `_BaseConversion` (depends on `_JsonConvert`)
+    #     *   `_DataTypeConversion` (depends on `_BaseConversion`)
+    #     *   `_ListConversion` (depends on `_BaseConversion`)
+    #     *   `_DictConversion` (depends on `_BaseConversion`)
+    #     *   `_EnumConversion` (depends on `_JsonConvert` and `_DictConversion`)
+    #     *   `SmartJson` (the main class, defined last)
+    # 3.  **Class References**:
+    #     *   All internal references to these helper classes within the `SmartJson` methods (e.g., `serialize`, `toObject`) and within the helper classes themselves have been updated to use the direct class names (e.g., `_DictConversion(...)` instead of `SmartJson._DictConversion(...)`).
+    # 4.  **Python 2 Compatibility**:
+    #     *   All classes now explicitly inherit from `object` (e.g., `class _KObject(object):`).
+    #     *   `super()` calls in derived helper classes have been updated to the Python 2 compatible syntax (e.g., `super(_DataTypeConversion, self).__init__(visited)`).
+    #     *   f-strings in exception messages have been replaced with `.format()` for broader Python version compatibility.
+    #     *   The `__str__` method in `SmartJsonError` was adjusted to handle potential byte/unicode issues in Python 2 when formatting the final error string.
+    # 5.  **Serialization Logic in `SmartJson.serialize`**:
+    #     *   When `self.__classe` is a tuple, complex, datetime, or OrderedDict, it now correctly instantiates a module-level `_JsonConvert(visited_set)` for the conversion.
+    #     *   Similarly, when checking if `self.__classe` is an EnumMeta, it uses `_JsonConvert(visited_set).get_class_name(...)`.
 
 This restructuring should resolve the `NameError` related to `_BaseConversion` and ensure that all class dependencies are correctly handled at definition time. The code also maintains Python 2/3 compatibility.
 
 This completes the current subtask.
+
+[end of smartjson/__smart_json__.py]
