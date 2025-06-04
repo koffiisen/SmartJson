@@ -26,11 +26,27 @@ class SmartJson:
         if cls:
             self.classname = cls.__class__.__name__
 
-    def serialize(self, pretty=True):
+    def serialize(self, pretty=True, schema=None):
         """
-        :param pretty:
-        :return:
+        Serializes the current object (or dictionary/list) to a JSON string.
+
+        Optionally validates the object against a schema before serialization.
+
+        :param pretty: If True, the output JSON string will be pretty-printed (indented).
+                       Defaults to True.
+        :param schema: Optional. A dictionary defining the schema to validate the object against
+                       before serialization. If validation fails, SmartJsonSchemaValidationError is raised.
+                       See documentation for schema definition structure.
+        :return: A JSON string representing the object.
+        :raises SmartJsonCircularDependencyError: If a circular dependency is detected during serialization.
+        :raises SmartJsonSerializationError: For general errors during serialization.
+        :raises SmartJsonSchemaValidationError: If schema validation is enabled and fails.
+        :raises SmartJsonUnsupportedTypeError: If an unsupported type is encountered that cannot be serialized.
         """
+        if schema:
+            # self.__classe is the original object/dict passed to SmartJson
+            SmartJson._validate_object(self.__classe, schema)
+
         visited_set = set() # Initialize for this top-level serialization call
         try:
             if isinstance(self.__classe, dict):
@@ -70,13 +86,27 @@ class SmartJson:
             raise SmartJsonSerializationError(f"Failed to serialize object of type '{obj_type}'", original_exception=e)
 
 
-    def serializeToJsonFile(self, directory="output", filename="smart.json"):
+    def serializeToJsonFile(self, directory="output", filename="smart.json", schema=None):
         """
-        Serializes the object to a JSON file.
-        :param directory: The directory to save the file.
-        :param filename: The name of the file.
-        :raises SmartJsonSerializationError: If serialization or file writing fails.
+        Serializes the current object (or dictionary/list) to a JSON file.
+
+        Optionally validates the object against a schema before serialization.
+
+        :param directory: The directory where the JSON file will be saved. Defaults to "output".
+        :param filename: The name of the JSON file. Defaults to "smart.json" for basic types
+                         or "[classname].json" for objects if `classname` is available.
+        :param schema: Optional. A dictionary defining the schema to validate the object against
+                       before serialization. If validation fails, SmartJsonSchemaValidationError is raised.
+                       See documentation for schema definition structure.
+        :raises SmartJsonSerializationError: For general errors during serialization or file writing.
+        :raises SmartJsonSchemaValidationError: If schema validation is enabled and fails.
+        :raises SmartJsonCircularDependencyError: If a circular dependency is detected.
+        :raises SmartJsonUnsupportedTypeError: If an unsupported type is encountered.
         """
+        if schema:
+            # self.__classe is the original object/dict passed to SmartJson
+            SmartJson._validate_object(self.__classe, schema)
+
         try:
             os.makedirs(directory, exist_ok=True) # Use exist_ok=True
         except OSError as e:
@@ -84,7 +114,16 @@ class SmartJson:
             raise SmartJsonSerializationError(f"Could not create directory '{directory}'", original_exception=e)
 
         try:
-            serialized_data = self.serialize(pretty=True) # pretty=True for file output
+            # Pass schema=None here because validation is already done at the beginning of this method.
+            # Or, ensure self.serialize doesn't re-validate if called internally after a top-level validation.
+            # For now, assuming self.serialize will handle schema=None if it's the primary entry.
+            # However, serializeToJsonFile calls self.serialize(). If schema is passed to serializeToJsonFile,
+            # it should ideally be passed down to self.serialize() if not handled at this top level.
+            # The current implementation validates at the beginning of THIS method, then calls self.serialize().
+            # The self.serialize() might re-validate if schema is passed again.
+            # Let's pass schema=None to self.serialize here, as validation is done above.
+            serialized_data = self.serialize(pretty=True, schema=None) # Validate once at this level
+
             # Determine the correct filename if default is used
             output_filename = filename
             if filename == "smart.json" and hasattr(self, 'classname') and self.classname:
@@ -94,32 +133,42 @@ class SmartJson:
 
             # Use io.open for consistent encoding
             with io.open(filepath, 'w', encoding='utf-8') as outfile:
-                # self.serialize already returns a JSON string
-                # Ensure it's unicode for Py2 io.open
                 if six.PY2 and isinstance(serialized_data, str): # str in Py2 is bytes
                     serialized_data = serialized_data.decode('utf-8')
                 outfile.write(serialized_data)
 
-        except SmartJsonError: # Re-raise our specific errors from self.serialize()
+        except SmartJsonError:
             raise
-        except Exception as e: # Catch other errors like file I/O issues
+        except Exception as e:
             obj_type = type(self.__classe).__name__
             raise SmartJsonSerializationError(f"Failed to serialize object of type '{obj_type}' to file '{filepath}'", original_exception=e)
 
 
-    def toObjectFromFile(self, jsonFile):
+    def toObjectFromFile(self, jsonFile, schema=None):
         """
-        Deserializes a JSON file to a Python object.
+        Deserializes a JSON file to a Python object, with optional schema validation.
+
+        The resulting object is a `_KObject` instance, allowing attribute-style access
+        to the deserialized data.
 
         :param jsonFile: Path to the JSON file.
-        :return: A Python object (typically a _KObject instance).
-        :raises SmartJsonDeserializationError: If the file is not found, not a valid JSON, or other deserialization issues.
+        :param schema: Optional. A dictionary defining the schema to validate the JSON data against
+                       after parsing. If validation fails, SmartJsonSchemaValidationError is raised.
+                       See documentation for schema definition structure.
+        :return: A Python object (typically a `_KObject` instance).
+        :raises SmartJsonDeserializationError: If the file is not found, is not valid JSON,
+                                             or other issues occur during deserialization.
+        :raises SmartJsonSchemaValidationError: If schema validation is enabled and fails.
         """
         try:
             # Use io.open for consistent encoding
             with io.open(jsonFile, 'r', encoding='utf-8') as outfile:
                 dic = json.load(outfile)
-                return SmartJson._KObject(dic)
+
+            if schema:
+                SmartJson._validate_data(dic, schema) # Call validation
+
+            return SmartJson._KObject(dic)
         except FileNotFoundError: # Py3 specific, Py2 uses IOError
             raise SmartJsonDeserializationError(f"JSON file not found: {jsonFile}")
         except IOError as e: # Catch Py2's FileNotFoundError equivalent
@@ -128,19 +177,117 @@ class SmartJson:
             raise SmartJsonDeserializationError(f"I/O error reading file '{jsonFile}'", original_exception=e)
         except json.JSONDecodeError as e:
             raise SmartJsonDeserializationError(f"Invalid JSON format in file '{jsonFile}': {e.message}", original_exception=e)
-        except SmartJsonError: # Re-raise if _KObject init raises one
+        except SmartJsonError: # Re-raise if _KObject init or _validate_data raises one
             raise
         except Exception as e: # Catch other potential errors
             raise SmartJsonDeserializationError(f"Error deserializing from file '{jsonFile}'", original_exception=e)
 
-
-    def toObject(self, _json):
+    @staticmethod
+    def _validate_object(obj, schema, path=""):
         """
-        Deserializes a JSON string or dictionary to a Python object.
+        Validates a Python object or dictionary against a schema before serialization.
 
-        :param _json: A JSON string or a Python dictionary.
-        :return: A Python object (typically a _KObject instance).
-        :raises SmartJsonDeserializationError: If input is invalid, JSON is malformed, or other deserialization issues.
+        This method checks for required fields, correct Python types, and recursively validates
+        nested objects/dictionaries and lists of objects/typed items based on the schema.
+
+        The schema is expected to define fields with properties like 'type' (actual Python type),
+        'required' (boolean), 'schema' (for nested objects/dicts), 'item_type' (for list items' type),
+        and 'item_schema' (for schema of objects within a list).
+
+        :param obj: The Python object or dictionary to validate.
+        :param schema: A dictionary representing the schema.
+        :param path: A string representing the current validation path for error messages
+                     (e.g., "user.address" or "items[0]").
+        :raises SmartJsonSchemaValidationError: If any validation check fails.
+        """
+        if not isinstance(schema, dict):
+            raise SmartJsonSchemaValidationError(f"Invalid schema definition at '{path}': schema must be a dictionary.")
+
+        is_obj_dict = isinstance(obj, dict)
+
+        for field_name, field_props in six.iteritems(schema):
+            current_path = f"{path}.{field_name}" if path else field_name
+
+            if not isinstance(field_props, dict):
+                raise SmartJsonSchemaValidationError(f"Invalid schema definition for field '{current_path}': properties must be a dictionary.")
+
+            is_required = field_props.get('required', False)
+            # In serialization, 'type' in schema refers to the expected Python type of the attribute/value.
+            expected_py_type = field_props.get('type')
+
+            attr_exists = hasattr(obj, field_name) if not is_obj_dict else field_name in obj
+
+            if is_required and not attr_exists:
+                obj_type_name = type(obj).__name__
+                raise SmartJsonSchemaValidationError(f"Missing required attribute/key: '{current_path}' on object/dict of type '{obj_type_name}'.")
+
+            if attr_exists:
+                value = getattr(obj, field_name) if not is_obj_dict else obj[field_name]
+
+                if expected_py_type:
+                    # Direct type comparison for basic types, allow schema to specify classes for custom types
+                    if not isinstance(value, expected_py_type):
+                        raise SmartJsonSchemaValidationError(
+                            f"Invalid type for attribute/key '{current_path}'. Expected {expected_py_type.__name__}, got {type(value).__name__}.")
+
+                    # After type check, if a sub-schema is provided for this field, validate it.
+                    # This applies if expected_py_type was 'dict' and has a 'schema',
+                    # OR if expected_py_type was a custom class and has an associated 'schema' for its attributes.
+                    if 'schema' in field_props:
+                        # Ensure 'value' is an object or dict before applying a dict-like schema to it.
+                        # The isinstance check above should have already verified 'value' against expected_py_type.
+                        # If expected_py_type is not dict or a custom class, having a 'schema' entry might be a schema design error,
+                        # but we proceed if value is suitable for attribute/key based validation.
+                        if isinstance(value, (dict)) or hasattr(value, '__dict__'): # Suitable for recursive _validate_object
+                             SmartJson._validate_object(value, field_props['schema'], path=current_path)
+                        # else: value is of expected_py_type, but not dict-like, yet a sub-schema is provided.
+                        # This could be an error or a specific use case (e.g. schema for a list's own properties, not items).
+                        # For now, if not dict-like, we don't recurse with field_props['schema'].
+
+                    elif expected_py_type == list and ('item_type' in field_props or 'item_schema' in field_props):
+                        item_expected_py_type = field_props.get('item_type') # This should be a Python type/class
+                        item_schema_def = field_props.get('item_schema')
+
+                        if not isinstance(value, list): # Value of the field itself must be a list
+                             raise SmartJsonSchemaValidationError(f"Attribute/key '{current_path}' expected to be a list, got {type(value).__name__}.")
+
+                        for idx, item in enumerate(value):
+                            item_path = f"{current_path}[{idx}]"
+
+                            if item_expected_py_type: # Check type of item in list
+                                if not isinstance(item, item_expected_py_type):
+                                    raise SmartJsonSchemaValidationError(
+                                        f"Invalid type for item at '{item_path}'. Expected {item_expected_py_type.__name__}, got {type(item).__name__}.")
+
+                            if item_schema_def: # If items themselves have a schema (e.g. list of objects)
+                                # If item_schema is present, 'item' should be suitable for _validate_object
+                                # (i.e., an object or a dictionary).
+                                if isinstance(item, (dict)) or hasattr(item, '__dict__'):
+                                    SmartJson._validate_object(item, item_schema_def, path=item_path)
+                                elif item_expected_py_type and not (isinstance(item, dict) or hasattr(item, '__dict__')):
+                                    # This case means item_schema is provided, but item is not dict-like,
+                                    # AND item_expected_py_type was something else (e.g. str). Schema conflict.
+                                    raise SmartJsonSchemaValidationError(
+                                        f"Schema for item at '{item_path}' provided, but item type '{type(item).__name__}' is not an object or dictionary.")
+
+        # Note: Extra attributes/keys on the object/dict not in the schema are allowed by default.
+
+    def toObject(self, _json, schema=None):
+        """
+        Deserializes a JSON string or dictionary to a Python object, with optional schema validation.
+
+        The resulting object is a `_KObject` instance, allowing attribute-style access
+        to the deserialized data.
+
+        :param _json: A JSON string, bytes, or a Python dictionary.
+        :param schema: Optional. A dictionary defining the schema to validate the JSON data against
+                       after parsing (if input is string/bytes) or directly (if input is dict).
+                       If validation fails, SmartJsonSchemaValidationError is raised.
+                       See documentation for schema definition structure.
+        :return: A Python object (typically a `_KObject` instance).
+        :raises SmartJsonDeserializationError: If input is invalid, JSON is malformed,
+                                             or other issues occur during deserialization.
+        :raises SmartJsonSchemaValidationError: If schema validation is enabled and fails.
         """
         dic = None
         try:
@@ -155,15 +302,120 @@ class SmartJson:
                 raise SmartJsonDeserializationError(
                     f"Invalid input type for deserialization: Expected a JSON string, bytes, or a dictionary, got {type(_json).__name__}.")
 
+            if schema and dic is not None: # Ensure dic is populated before validation
+                SmartJson._validate_data(dic, schema) # Call validation
+
             return SmartJson._KObject(dic)
         except json.JSONDecodeError as e:
             raise SmartJsonDeserializationError(f"Invalid JSON format in input: {e.message}", original_exception=e)
         except UnicodeDecodeError as e:
             raise SmartJsonDeserializationError("Input bytes could not be decoded using UTF-8", original_exception=e)
-        except SmartJsonError: # Re-raise if _KObject init raises one
+        except SmartJsonError: # Re-raise if _KObject init or _validate_data raises one
             raise
         except Exception as e: # Catch other errors during _KObject creation
             raise SmartJsonDeserializationError("Error converting input to object", original_exception=e)
+
+    @staticmethod
+    def _validate_data(data, schema, path=""):
+        """
+        Validates JSON-like data (Python dictionaries/lists post-JSON parsing) against a schema.
+
+        This method is used during deserialization. It checks for required fields, correct data types
+        (mapping JSON types to expected Python types via string names like "str", "int", "list", "dict"),
+        and recursively validates nested dictionaries and lists of items.
+
+        The schema is expected to define fields with properties like 'type' (string name of type),
+        'required' (boolean), 'schema' (for nested dicts), 'item_type' (string name for list items' type),
+        and 'item_schema' (for schema of dicts within a list).
+
+        :param data: The Python dictionary or list (parsed from JSON) to validate.
+        :param schema: A dictionary representing the schema.
+        :param path: A string representing the current validation path for error messages
+                     (e.g., "user.address" or "items[0]").
+        :raises SmartJsonSchemaValidationError: If any validation check fails.
+        """
+        if not isinstance(schema, dict):
+            # For now, we assume the top-level schema is always a dictionary defining an object.
+            # This could be expanded later if schemas for lists or primitives at the top level are needed.
+            raise SmartJsonSchemaValidationError(f"Invalid schema definition at '{path}': schema itself must be a dictionary.")
+
+        if not isinstance(data, dict):
+            raise SmartJsonSchemaValidationError(f"Invalid data type at '{path or "root"}'. Expected a dictionary, got {type(data).__name__}.")
+
+        for field_name, field_props in six.iteritems(schema):
+            current_path = f"{path}.{field_name}" if path else field_name
+
+            if not isinstance(field_props, dict):
+                raise SmartJsonSchemaValidationError(f"Invalid schema definition for field '{current_path}': properties must be a dictionary.")
+
+            is_required = field_props.get('required', False)
+            field_type_name = field_props.get('type') # Type name as string e.g. "str", "int", "list", "dict"
+
+            # Python type mapping - can be expanded
+            TYPE_MAP = {
+                "str": six.string_types,
+                "int": six.integer_types, # Catches int, long in Py2
+                "float": float,
+                "bool": bool,
+                "list": list,
+                "dict": dict,
+                # Custom class types could be registered here or handled differently
+            }
+
+            if is_required and field_name not in data:
+                raise SmartJsonSchemaValidationError(f"Missing required field: '{current_path}'")
+
+            if field_name in data:
+                value = data[field_name]
+
+                if field_type_name: # If type is specified in schema
+                    expected_type = TYPE_MAP.get(field_type_name)
+                    if not expected_type:
+                        # This means the schema specified a type name we don't have in TYPE_MAP
+                        # Could be a custom class name, or an unsupported basic type string
+                        # For now, we'll raise an error for unmapped basic types.
+                        # Custom class type validation would be more complex (e.g. value is dict, field_type_name is 'MyClass')
+                        raise SmartJsonSchemaValidationError(f"Unknown type '{field_type_name}' specified in schema for field '{current_path}'.")
+
+                    if not isinstance(value, expected_type):
+                        actual_type_name = type(value).__name__
+                        if isinstance(value, six.integer_types): actual_type_name = "int"
+                        elif isinstance(value, six.string_types): actual_type_name = "str"
+                        raise SmartJsonSchemaValidationError(
+                            f"Invalid type for field '{current_path}'. Expected '{field_type_name}', got '{actual_type_name}'.")
+
+                    # Handle nested schemas for dicts and lists
+                    if field_type_name == "dict" and 'schema' in field_props:
+                        # Recursive call for nested dictionary schema
+                        SmartJson._validate_data(value, field_props['schema'], path=current_path)
+
+                    elif field_type_name == "list" and ('item_type' in field_props or 'item_schema' in field_props):
+                        item_type_name = field_props.get('item_type')
+                        item_schema_def = field_props.get('item_schema')
+
+                        for idx, item in enumerate(value):
+                            item_path = f"{current_path}[{idx}]"
+
+                            if item_type_name:
+                                expected_item_type = TYPE_MAP.get(item_type_name)
+                                if not expected_item_type:
+                                    raise SmartJsonSchemaValidationError(
+                                        f"Unknown item_type '{item_type_name}' in list schema for field '{current_path}'.")
+                                if not isinstance(item, expected_item_type):
+                                    actual_item_type_name = type(item).__name__
+                                    if isinstance(item, six.integer_types): actual_item_type_name = "int"
+                                    elif isinstance(item, six.string_types): actual_item_type_name = "str"
+                                    raise SmartJsonSchemaValidationError(
+                                        f"Invalid type for item at '{item_path}'. Expected '{item_type_name}', got '{actual_item_type_name}'.")
+
+                            if item_schema_def:
+                                if not isinstance(item, dict): # Item must be a dict if item_schema is provided
+                                    raise SmartJsonSchemaValidationError(
+                                        f"Invalid item type at '{item_path}'. Expected a dictionary for schema validation, got {type(item).__name__}.")
+                                # Recursive call for nested schema within list items
+                                SmartJson._validate_data(item, item_schema_def, path=item_path)
+
+        # (Optional: Add check for extra fields in data not defined in schema here if desired)
 
 
     def getClass(self):
@@ -369,6 +621,16 @@ class SmartJsonDeserializationError(SmartJsonError):
 
 class SmartJsonUnsupportedTypeError(SmartJsonError):
     """Exception raised when an unsupported data type is encountered during conversion."""
+    pass
+
+class SmartJsonSchemaValidationError(SmartJsonError):
+    """
+    Exception raised when data fails schema validation during serialization or deserialization.
+
+    Attributes:
+        message (str): The error message, often including the path to the invalid field.
+        original_exception (Exception, optional): The original exception, if any, that led to this error.
+    """
     pass
 # --- End of Custom Exception Classes ---
 

@@ -87,6 +87,137 @@ Features:
   
    ```
         
+## Schema Validation
+
+SmartJson now supports schema validation for both serialization and deserialization processes. This allows you to ensure that your Python objects (before serialization) or your JSON data (before deserialization) conform to a predefined structure and type constraints.
+
+If validation fails, a `SmartJsonSchemaValidationError` is raised, providing a detailed message about the field or attribute that caused the failure, including its path.
+
+### Defining Schemas
+
+A schema is defined as a Python dictionary. Each key in the schema represents a field name (for dictionaries/JSON objects) or an attribute name (for Python objects). The value associated with each key is another dictionary specifying the properties for that field/attribute.
+
+Supported properties in a field's schema definition:
+
+*   `'type'`: (Required for type checking)
+    *   When validating data for **deserialization** (from JSON), this should be a string name of the expected type after JSON parsing (e.g., `"str"`, `"int"`, `"float"`, `"bool"`, `"list"`, `"dict"`).
+    *   When validating a Python object for **serialization**, this should be the actual Python type or class (e.g., `str`, `int`, `float`, `bool`, `list`, `dict`, or a custom class like `User`).
+*   `'required'`: (Optional) A boolean indicating if the field/attribute is mandatory. Defaults to `False`.
+*   `'schema'`: (Optional) For fields of type `dict` (deserialization) or fields that are objects/dictionaries (serialization), this property can hold a nested schema dictionary to validate the structure of the nested object/dictionary.
+*   `'item_type'`: (Optional) For fields of type `list`, this specifies the expected type of items within the list.
+    *   For deserialization, use type names: `"str"`, `"int"`, etc.
+    *   For serialization, use Python types: `str`, `int`, etc.
+*   `'item_schema'`: (Optional) For fields of type `list` where items are expected to be objects/dictionaries, this provides a schema definition for each item in the list.
+
+**Example Schema Definition:**
+
+```python
+# For Python classes (used in serialization validation or as type hints)
+class Address:
+    pass # Define attributes as needed
+
+class User:
+    pass # Define attributes as needed
+
+# Schema definition
+address_schema = {
+    'street': {'type': str, 'required': True}, # For serialization, type is str
+                                               # For deserialization, type would be "str"
+    'city': {'type': str, 'required': True}
+}
+
+# For deserialization, you'd typically use string type names:
+address_schema_deserialization = {
+    'street': {'type': "str", 'required': True},
+    'city': {'type': "str", 'required': True},
+    'zip_code': {'type': "str", 'required': True}
+}
+
+user_schema_serialization = {
+    'name': {'type': str, 'required': True},
+    'age': {'type': int, 'required': True},
+    'is_active': {'type': bool, 'required': False},
+    'address': {'type': Address, 'required': False, 'schema': address_schema}, # Validates 'address' attr is instance of Address, then validates its structure
+    'tags': {'type': list, 'required': False, 'item_type': str}, # List of strings
+    'items': {
+        'type': list,
+        'required': False,
+        'item_type': dict, # Or a specific class like 'Item' for serialization
+        'item_schema': { # Schema for each dictionary/object in the 'items' list
+            'item_id': {'type': int, 'required': True},
+            'description': {'type': str}
+        }
+    }
+}
+
+user_schema_deserialization = {
+    'name': {'type': "str", 'required': True},
+    'age': {'type': "int", 'required': True},
+    'is_active': {'type': "bool", 'required': False},
+    'address': {'type': "dict", 'required': False, 'schema': address_schema_deserialization},
+    'tags': {'type': "list", 'required': False, 'item_type': "str"},
+    'items': {
+        'type': "list",
+        'required': False,
+        'item_type': "dict", # Items are expected to be dictionaries
+        'item_schema': { # Schema for each dictionary in the 'items' list
+            'item_id': {'type': "int", 'required': True},
+            'description': {'type': "str"}
+        }
+    }
+}
+```
+**Note:** For deserialization (`_validate_data`), the `'type'` and `'item_type'` in the schema should be strings like `"str"`, `"int"`, `"list"`, `"dict"`. For serialization (`_validate_object`), these should be actual Python types/classes like `str`, `int`, `list`, `dict`, `MyCustomClass`.
+
+### Using Schemas
+
+**For Deserialization:**
+Pass the schema to `toObject` or `toObjectFromFile`:
+```python
+from smartjson import SmartJson, SmartJsonSchemaValidationError
+
+# Assume user_schema_deserialization is defined as above
+json_string = '{"name": "Alice", "age": "thirty"}' # Age is incorrect type
+sj = SmartJson()
+
+try:
+    user_obj = sj.toObject(json_string, schema=user_schema_deserialization)
+except SmartJsonSchemaValidationError as e:
+    print(f"Schema validation failed: {e}")
+    # Expected output: Schema validation failed: Invalid type for field 'age'. Expected 'int', got 'str'.
+
+# Similarly for toObjectFromFile:
+# user_obj = sj.toObjectFromFile("user.json", schema=user_schema_deserialization)
+```
+
+**For Serialization:**
+Pass the schema to `serialize` or `serializeToJsonFile`:
+```python
+# Assume User class and user_schema_serialization are defined
+class User:
+    def __init__(self, name, age, is_active=None, address=None, tags=None, items=None):
+        self.name = name
+        self.age = age
+        self.is_active = is_active
+        self.address = address
+        self.tags = tags
+        self.items = items
+
+user_instance = User(name="Bob", age="invalid_age") # Age should be int
+
+sj = SmartJson(user_instance)
+try:
+    json_output = sj.serialize(schema=user_schema_serialization)
+except SmartJsonSchemaValidationError as e:
+    print(f"Schema validation failed during serialization: {e}")
+    # Expected output: Schema validation failed during serialization: Invalid type for attribute/key 'age'. Expected int, got str.
+
+# Similarly for serializeToJsonFile:
+# sj.serializeToJsonFile(schema=user_schema_serialization)
+```
+
+If validation fails, a `SmartJsonSchemaValidationError` is raised, with a message indicating the path to the problematic field or attribute (e.g., `address.city` or `items[0].item_id`).
+
 
 ## ``version (2.0.1) ``
 * Fix script

@@ -10,10 +10,80 @@ from smartjson.__smart_json__ import (
     SmartJsonSerializationError,
     SmartJsonDeserializationError,
     SmartJsonUnsupportedTypeError,
-    SmartJsonCircularDependencyError
+    SmartJsonCircularDependencyError,
+    SmartJsonSchemaValidationError # Added
 )
 
-# Helper classes for testing
+# --- Helper classes and Schemas for Validation Tests ---
+class ValidAddress:
+    def __init__(self, street, city, zip_code):
+        self.street = street
+        self.city = city
+        self.zip_code = zip_code
+
+VALID_ADDRESS_SCHEMA = {
+    'street': {'type': six.string_types, 'required': True},
+    'city': {'type': six.string_types, 'required': True},
+    'zip_code': {'type': six.string_types, 'required': True}
+}
+
+class ValidItem:
+    def __init__(self, item_id, price):
+        self.item_id = item_id
+        self.price = price
+
+VALID_ITEM_SCHEMA = {
+    'item_id': {'type': six.integer_types, 'required': True},
+    'price': {'type': float, 'required': True}
+}
+
+class ValidUser:
+    def __init__(self, name, age, email=None, address=None, roles=None, preferences=None, items=None):
+        self.name = name
+        self.age = age
+        if email:
+            self.email = email # Optional
+        if address:
+            self.address = address # Nested object
+        if roles:
+            self.roles = roles # List of simple types (strings)
+        if preferences:
+            self.preferences = preferences # Dictionary with simple values
+        if items:
+            self.items = items # List of objects
+
+VALID_USER_SCHEMA = {
+    'name': {'type': six.string_types, 'required': True},
+    'age': {'type': six.integer_types, 'required': True},
+    'email': {'type': six.string_types, 'required': False}, # Optional
+    'address': { # Nested object
+        'type': ValidAddress, # For serialization, specifies expected Python type
+                               # For deserialization, this implies value should be a dict,
+                               # and 'schema' here defines how to validate that dict.
+        'required': False,
+        'schema': VALID_ADDRESS_SCHEMA
+    },
+    'roles': { # List of simple types
+        'type': list,
+        'required': False,
+        'item_type': six.string_types # Specifies type of items in the list
+    },
+    'preferences': { # Dictionary with simple value types (not explicitly validated here beyond 'dict')
+        'type': dict,
+        'required': False
+        # Could add 'value_type': str here if we wanted to validate values of the dict itself
+    },
+    'items': { # List of objects
+        'type': list,
+        'required': False,
+        'item_type': ValidItem, # For serialization, item type is ValidItem
+                                # For deserialization, implies items are dicts
+        'item_schema': VALID_ITEM_SCHEMA # Schema for each item in the list
+    }
+}
+
+
+# Original Helper classes for other tests
 class SimpleObject:
     def __init__(self, name, value):
         self.name = name
@@ -203,6 +273,159 @@ class TestSmartJson(unittest.TestCase):
         # and wraps them in SmartJsonSerializationError.
         with self.assertRaisesRegex(SmartJsonSerializationError, "Error converting attributes for 'VarsFails'"):
             sj_vars_fails.serialize()
+
+    # --- Schema Validation Tests ---
+
+    # --- Deserialization Schema Validation Tests ---
+    def test_deserialize_valid_schema_success(self):
+        valid_user_json = json.dumps({
+            'name': 'John Doe',
+            'age': 30,
+            'email': 'john.doe@example.com',
+            'address': {'street': '123 Main St', 'city': 'Anytown', 'zip_code': '12345'},
+            'roles': ['user', 'admin'],
+            'items': [
+                {'item_id': 1, 'price': 10.50},
+                {'item_id': 2, 'price': 5.25}
+            ]
+        })
+        sj = SmartJson()
+        # Should not raise
+        obj = sj.toObject(valid_user_json, schema=VALID_USER_SCHEMA)
+        self.assertEqual(obj.name, 'John Doe') # _KObject access
+        self.assertEqual(obj.address.city, 'Anytown')
+        self.assertEqual(obj.items[0].item_id, 1)
+
+
+    def test_deserialize_missing_required_field(self):
+        invalid_json = json.dumps({'age': 30}) # 'name' is missing
+        sj = SmartJson()
+        with self.assertRaisesRegex(SmartJsonSchemaValidationError, "Missing required field: 'name'"):
+            sj.toObject(invalid_json, schema=VALID_USER_SCHEMA)
+
+    def test_deserialize_incorrect_type(self):
+        invalid_json = json.dumps({'name': 'Test', 'age': 'thirty'}) # age is str, expected int
+        sj = SmartJson()
+        with self.assertRaisesRegex(SmartJsonSchemaValidationError, r"Invalid type for field 'age'. Expected 'int', got 'str'"):
+            sj.toObject(invalid_json, schema=VALID_USER_SCHEMA)
+
+    def test_deserialize_nested_missing_required_field(self):
+        invalid_json = json.dumps({
+            'name': 'Jane Doe',
+            'age': 28,
+            'address': {'street': '456 Oak Ln'} # 'city' and 'zip_code' missing from address
+        })
+        sj = SmartJson()
+        with self.assertRaisesRegex(SmartJsonSchemaValidationError, "Missing required field: 'address.city'"):
+            sj.toObject(invalid_json, schema=VALID_USER_SCHEMA)
+
+    def test_deserialize_nested_incorrect_type(self):
+        invalid_json = json.dumps({
+            'name': 'Jane Doe',
+            'age': 28,
+            'address': {'street': '456 Oak Ln', 'city': 12345, 'zip_code': '54321'} # city is int
+        })
+        sj = SmartJson()
+        with self.assertRaisesRegex(SmartJsonSchemaValidationError, r"Invalid type for field 'address.city'. Expected 'str', got 'int'"):
+            sj.toObject(invalid_json, schema=VALID_USER_SCHEMA)
+
+    def test_deserialize_list_item_incorrect_type(self):
+        invalid_json = json.dumps({
+            'name': 'List Test', 'age': 25,
+            'roles': ['user', 123] # 123 is not a string
+        })
+        sj = SmartJson()
+        with self.assertRaisesRegex(SmartJsonSchemaValidationError, r"Invalid type for item at 'roles\[1\]'. Expected 'str', got 'int'"):
+            sj.toObject(invalid_json, schema=VALID_USER_SCHEMA)
+
+    def test_deserialize_list_item_incorrect_schema(self):
+        invalid_json = json.dumps({
+            'name': 'List Schema Test', 'age': 40,
+            'items': [{'item_id': 1, 'price': 'cheap'}] # price is str, expected float
+        })
+        sj = SmartJson()
+        with self.assertRaisesRegex(SmartJsonSchemaValidationError, r"Invalid type for field 'items\[0\].price'. Expected 'float', got 'str'"):
+            sj.toObject(invalid_json, schema=VALID_USER_SCHEMA)
+
+    def test_deserialize_optional_field_absent(self):
+        # 'email', 'address', 'roles', 'items' are optional
+        valid_json_minimal = json.dumps({'name': 'Minimal User', 'age': 50})
+        sj = SmartJson()
+        obj = sj.toObject(valid_json_minimal, schema=VALID_USER_SCHEMA) # Should pass
+        self.assertEqual(obj.name, "Minimal User")
+        self.assertFalse(hasattr(obj, 'email')) # _KObject won't have it if not in JSON
+
+    # --- Serialization Schema Validation Tests ---
+    def test_serialize_valid_object_success(self):
+        address = ValidAddress("789 Pine", "Otherville", "67890")
+        items = [ValidItem(item_id=10, price=100.0)]
+        user = ValidUser("Valid User", 40, email="valid@example.com", address=address, roles=["editor"], items=items)
+
+        sj = SmartJson(user)
+        # Should not raise
+        serialized_json = sj.serialize(schema=VALID_USER_SCHEMA, pretty=False)
+        # Basic check that serialization ran
+        self.assertIn('"name": "Valid User"', serialized_json)
+        self.assertIn('"street": "789 Pine"', serialized_json)
+        self.assertIn('"item_id": 10', serialized_json)
+
+
+    def test_serialize_missing_required_attribute(self):
+        class UserMissingAge: # Helper class for this specific test
+            def __init__(self, name):
+                self.name = name
+
+        user_obj = UserMissingAge("Test NoAge")
+        sj = SmartJson(user_obj)
+        with self.assertRaisesRegex(SmartJsonSchemaValidationError, "Missing required attribute/key: 'age'"):
+            sj.serialize(schema=VALID_USER_SCHEMA)
+
+    def test_serialize_incorrect_attribute_type(self):
+        user_obj = ValidUser("Test WrongAge", "thirty") # Age is str, schema expects int
+        sj = SmartJson(user_obj)
+        with self.assertRaisesRegex(SmartJsonSchemaValidationError, r"Invalid type for attribute/key 'age'. Expected .*int.*, got str"):
+            sj.serialize(schema=VALID_USER_SCHEMA)
+
+    def test_serialize_nested_missing_attribute(self):
+        class AddressMissingCity: # Helper class
+            def __init__(self, street, zip_code):
+                self.street = street
+                self.zip_code = zip_code
+
+        address = AddressMissingCity("123 Elm", "90210")
+        user = ValidUser("Nested Test", 35, address=address)
+        sj = SmartJson(user)
+        with self.assertRaisesRegex(SmartJsonSchemaValidationError, "Missing required attribute/key: 'address.city'"):
+            sj.serialize(schema=VALID_USER_SCHEMA)
+
+    def test_serialize_nested_incorrect_attribute_type(self):
+        address = ValidAddress("Main St", 12345, "54321") # City is int, schema expects str
+        user = ValidUser("Nested Type Test", 33, address=address)
+        sj = SmartJson(user)
+        with self.assertRaisesRegex(SmartJsonSchemaValidationError, r"Invalid type for attribute/key 'address.city'. Expected .*str.*, got int"):
+            sj.serialize(schema=VALID_USER_SCHEMA)
+
+    def test_serialize_list_item_incorrect_type(self):
+        user = ValidUser("List Type Test", 22, roles=['user', 123]) # 123 is not str
+        sj = SmartJson(user)
+        with self.assertRaisesRegex(SmartJsonSchemaValidationError, r"Invalid type for item at 'roles\[1\]'. Expected .*str.*, got int"):
+            sj.serialize(schema=VALID_USER_SCHEMA)
+
+    def test_serialize_list_item_incorrect_schema(self):
+        items = [ValidItem(1, "expensive")] # Price is str, schema expects float
+        user = ValidUser("List Schema Test", 42, items=items)
+        sj = SmartJson(user)
+        with self.assertRaisesRegex(SmartJsonSchemaValidationError, r"Invalid type for attribute/key 'items\[0\].price'. Expected float, got str"):
+            sj.serialize(schema=VALID_USER_SCHEMA)
+
+    def test_serialize_optional_field_absent(self):
+        user = ValidUser("Minimal User For Serialize", 55) # Optional fields (email, address, etc.) are absent
+        sj = SmartJson(user)
+        # Should pass without error
+        serialized_data = sj.serialize(schema=VALID_USER_SCHEMA, pretty=False)
+        self.assertIn('"name": "Minimal User For Serialize"', serialized_data)
+        self.assertNotIn("email", serialized_data) # Ensure optional fields are not there if not set
+
 
     # --- Basic Serialization/Deserialization Tests ---
     def test_simple_object_serialization_deserialization(self):
