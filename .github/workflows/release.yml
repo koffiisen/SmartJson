@@ -1,0 +1,87 @@
+name: Create Release and Publish
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # Triggers on tags like v0.1.0, v1.0.0, etc.
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to create a GitHub release
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.x' # Use a recent Python 3 for building
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build setuptools wheel
+
+    - name: Build package
+      run: python -m build --sdist --wheel .
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/* # Upload all files from the dist directory
+        # The release name will be the tag name by default
+        # The body of the release will be empty by default, can be populated by release-drafter or manually
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This is automatically provided by GitHub Actions
+
+  # Optional: Publish to PyPI
+  # Ensure PyPI token is configured as a secret named PYPI_API_TOKEN in GitHub repository settings
+  # publish-to-pypi:
+  #   needs: build-and-release # Run after building
+  #   runs-on: ubuntu-latest
+  #   environment: # Optional: define an environment in GitHub for PyPI publishing if you want protection rules
+  #     name: pypi
+  #     url: https://pypi.org/p/smartjson # Replace 'smartjson' if your PyPI package name is different
+  #   permissions:
+  #     id-token: write # Required for trusted publishing
+  #
+  #   steps:
+  #   - name: Download all build artifacts
+  #     uses: actions/download-artifact@v3
+  #     with:
+  #       name: github-release # This assumes the create-release step names its artifact this, or adjust as needed
+  #       path: dist/ # Download to dist directory
+  #
+  #   # If softprops/action-gh-release doesn't produce a downloadable artifact in a way that
+  #   # pypa/gh-action-pypi-publish can consume directly, you might need to rebuild or ensure artifacts are correctly passed.
+  #   # The 'softprops/action-gh-release' uploads directly. For PyPI, you typically re-download or use artifacts from the build job.
+  #   # For simplicity, let's assume we'll re-use the `dist` folder from the build job if run on same runner, or use artifacts.
+  #   # The following steps are more typical if PyPI publishing is a separate job.
+  #
+  #   - name: Checkout code (if needed, or use downloaded artifacts)
+  #     # uses: actions/checkout@v3 # Only if you need to rebuild or access repo files
+  #
+  #   - name: Set up Python for PyPI publish
+  #     uses: actions/setup-python@v3
+  #     with:
+  #       python-version: '3.x'
+  #
+  #   # This step assumes the 'dist' directory from the build job is available.
+  #   # If build-and-release and publish-to-pypi are separate jobs without artifact passing,
+  #   # you would need to ensure 'dist/*' is available.
+  #   # One way is to upload 'dist' as an artifact in the build job and download it here.
+  #
+  #   - name: Publish to PyPI
+  #     uses: pypa/gh-action-pypi-publish@release/v1
+  #     with:
+  #       # user: __token__ # Not needed with trusted publishing or API token
+  #       # password: ${{ secrets.PYPI_API_TOKEN }} # Use this if not using trusted publishing
+  #       # For trusted publishing (preferred):
+  #       # See: https://docs.pypi.org/trusted-publishers/using-a-trusted-publisher/
+  #       # Ensure your PyPI project is configured for trusted publishing with GitHub Actions.
+  #       # skip_existing: true # Optional: if you might re-run on same tag
+  #       packages_dir: dist/

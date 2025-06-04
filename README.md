@@ -1,6 +1,7 @@
 [![PyPI version](https://badge.fury.io/py/smartjson.svg)](https://pypi.org/project/smartjson/)
 [![PyPI version](https://img.shields.io/pypi/pyversions/smartjson.svg)](https://pypi.org/project/smartjson/)
 [![PyPI version](https://img.shields.io/pypi/dm/smartjson.svg)](https://pypi.org/project/smartjson/)
+[![CI](https://github.com/{{OWNER}}/{{REPOSITORY}}/actions/workflows/ci.yml/badge.svg)](https://github.com/{{OWNER}}/{{REPOSITORY}}/actions/workflows/ci.yml)
 
 
 [![PyPI install](https://img.shields.io/badge/Link-Install-blue.svg)](https://pypi.org/project/smartjson/)

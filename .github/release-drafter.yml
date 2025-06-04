@@ -1,0 +1,59 @@
+# Config for Release Drafter: https://github.com/release-drafter/release-drafter
+
+name-template: 'v$NEXT_PATCH_VERSION'
+tag-template: 'v$NEXT_PATCH_VERSION'
+
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'feature'
+      - 'enhancement'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+  - title: '🧰 Maintenance'
+    labels:
+      - 'chore'
+      - 'maintenance'
+      - 'dependencies'
+  - title: '📖 Documentation'
+    labels:
+      - 'documentation'
+      - 'docs'
+
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+template: |
+  ## Changes
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$NEXT_PATCH_VERSION
+
+# Replace all $NEXT_PATCH_VERSION with $NEXT_MINOR_VERSION or $NEXT_MAJOR_VERSION
+# if you want to draft releases for minor or major version bumps.
+# The default ($NEXT_PATCH_VERSION) is usually fine for starting.
+
+# Exclude commits from certain users (e.g., bots)
+exclude-contributors:
+  - 'dependabot[bot]'
+  - 'github-actions[bot]'
+
+# Autolabeler configuration (optional, but helpful)
+# This requires the release-drafter action to be run on pull_request events too.
+# For now, we'll assume labels are added manually or by other means.
+# autolabeler:
+#   - label: 'documentation'
+#     branch:
+#       - '/docs{0,1}\/.+/'
+#     title:
+#       - '/docs:/i'
+#     body:
+#       - '/docs:/i'
+#   - label: 'bug'
+#     branch:
+#       - '/fix\/.+/'
+#     title:
+#       - '/fix/i'
+#       - '/bug/i'
